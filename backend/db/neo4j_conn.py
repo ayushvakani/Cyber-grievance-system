@@ -7,24 +7,10 @@ load_dotenv()
 NEO4J_URL = os.getenv("NEO4J_URL")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
-class Neo4jConnection:
-    def __init__(self, uri, password):
-        self.driver = GraphDatabase.driver(uri, auth=("neo4j", password))
-
-    def close(self):
-        self.driver.close()
-
-    def get_session(self):
-        return self.driver.session()
-
-neo4j_conn = Neo4jConnection(NEO4J_URL, NEO4J_PASSWORD)
+driver = GraphDatabase.driver(NEO4J_URL, auth=("neo4j", NEO4J_PASSWORD))
 
 def get_neo4j_session():
-    session = neo4j_conn.get_session()
-    try:
-        yield session
-    finally:
-        session.close()
+    return driver.session()
 
 if __name__ == "__main__":
     # Quick test/ping
