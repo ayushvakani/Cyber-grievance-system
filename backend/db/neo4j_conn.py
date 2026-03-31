@@ -15,11 +15,11 @@ def get_neo4j_session():
 if __name__ == "__main__":
     # Quick test/ping
     try:
-        with neo4j_conn.get_session() as session:
+        with get_neo4j_session() as session:
             result = session.run("RETURN 1 AS result")
             record = result.single()
             print("Neo4j connection successful:", record["result"] == 1)
     except Exception as e:
         print("Neo4j connection failed:", e)
     finally:
-        neo4j_conn.close()
+        driver.close()
