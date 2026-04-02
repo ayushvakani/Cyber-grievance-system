@@ -2,7 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
-import shutil
+import aiofiles
+import asyncio
 import os
 
 from backend.db.postgres import get_db
@@ -22,10 +23,9 @@ async def submit_complaint(
     db: Session = Depends(get_db)
 ):
     """
-    Day 20: Image + Text Merging & DB Persistence.
-    1. Generates a unique complaint_id.
-    2. Runs OCR if an image is provided.
-    3. Merges all text and saves the record to PostgreSQL.
+    Day 21: Async File Handling.
+    1. Uses aiofiles for non-blocking file writes.
+    2. Runs synchronous OCR in a separate thread to keep the event loop free.
     """
     try:
         # 1. Generate unique complaint ID
@@ -39,16 +39,18 @@ async def submit_complaint(
             # Create uploads directory if it doesn't exist
             os.makedirs("uploads", exist_ok=True)
             
-            # Save the file (using the companion UUID to ensure uniqueness)
+            # Save the file asynchronously
             file_extension = os.path.splitext(complaint_image.filename)[1]
             final_image_path = f"uploads/{comp_uuid}{file_extension}"
             
-            with open(final_image_path, "wb") as buffer:
-                shutil.copyfileobj(complaint_image.file, buffer)
+            async with aiofiles.open(final_image_path, mode="wb") as out_file:
+                content = await complaint_image.read()
+                await out_file.write(content)
 
-            # Perform OCR
+            # Perform OCR (Synchronous task run in a separate thread)
             ocr_service = OCRService()
-            ocr_result = ocr_service.extract_text(final_image_path)
+            # asyncio.to_thread is available in Python 3.9+
+            ocr_result = await asyncio.to_thread(ocr_service.extract_text, final_image_path)
             
             if ocr_result.get("raw_text"):
                 # Merge OCR text with typed text
@@ -56,7 +58,7 @@ async def submit_complaint(
                     merged_raw_text += "\n-- OCR EXTRACTED TEXT --\n"
                 merged_raw_text += ocr_result["raw_text"]
 
-        # 3. Create Database Record
+        # 3. Create Database Record (SQLAlchemy 1.x/2.0 sync style)
         new_complaint = Complaint(
             complaint_id=comp_uuid,
             citizen_name=citizen_name,
@@ -65,7 +67,7 @@ async def submit_complaint(
             date_of_incident=date_of_incident,
             complaint_text=complaint_text,
             image_path=final_image_path,
-            raw_text=merged_raw_text, # Merged final text
+            raw_text=merged_raw_text,
             status="pending"
         )
 
@@ -76,7 +78,7 @@ async def submit_complaint(
         return {
             "status": "success",
             "complaint_id": comp_uuid,
-            "message": "Complaint submitted and processed successfully",
+            "message": "Complaint submitted and processed asynchronously",
             "ocr_processed": complaint_image is not None
         }
 
