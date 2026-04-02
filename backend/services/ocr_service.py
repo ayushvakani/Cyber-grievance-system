@@ -1,5 +1,6 @@
 import easyocr
 import os
+from PIL import Image, ImageEnhance
 
 class OCRService:
     def __init__(self, langs=['en', 'hi'], gpu=True):
@@ -20,9 +21,36 @@ class OCRService:
         """
         return confidence >= 0.65
 
+    def _preprocess_image(self, image_path: str) -> str:
+        """
+        Preprocessing step: resize, grayscale, and increase contrast.
+        Returns the path to the processed image.
+        """
+        try:
+            with Image.open(image_path) as img:
+                # 1. Resize if too large (max 1920px)
+                max_size = 1920
+                if max(img.size) > max_size:
+                    img.thumbnail((max_size, max_size))
+
+                # 2. Convert to Grayscale
+                img = img.convert('L')
+
+                # 3. Increase Contrast
+                enhancer = ImageEnhance.Contrast(img)
+                img = enhancer.enhance(1.5) # Factor 1.5 for better readability
+
+                # 4. Save to temporary processed file
+                processed_path = image_path.replace('.', '_processed.')
+                img.save(processed_path)
+                return processed_path
+        except Exception as e:
+            print(f"Preprocessing failed: {e}")
+            return image_path # Fallback to original
+
     def extract_text(self, image_path: str):
         """
-        Extracts text from an image with error handling.
+        Extracts text from an image with preprocessing and error handling.
         Args:
             image_path (str): Path to the image file.
         Returns:
@@ -36,9 +64,11 @@ class OCRService:
                 "is_clear": False
             }
 
+        processed_path = self._preprocess_image(image_path)
+        
         try:
-            # Perform OCR
-            results = self.reader.readtext(image_path)
+            # Perform OCR on processed image
+            results = self.reader.readtext(processed_path)
 
             if not results:
                 return {
@@ -58,6 +88,13 @@ class OCRService:
             word_count = len(raw_text.split())
             is_clear = self.is_image_clear(avg_confidence)
             
+            # Clean up temporary processed file if it's different from original
+            if processed_path != image_path:
+                try:
+                    os.remove(processed_path)
+                except Exception as e:
+                    print(f"Failed to cleanup {processed_path}: {e}")
+
             return {
                 "raw_text": raw_text,
                 "confidence": avg_confidence,
@@ -66,6 +103,9 @@ class OCRService:
                 "is_clear": is_clear
             }
         except Exception as e:
+            # Cleanup if failed
+            if processed_path != image_path and os.path.exists(processed_path):
+                os.remove(processed_path)
             return {
                 "error": f"OCR processing failed: {str(e)}",
                 "raw_text": "",
