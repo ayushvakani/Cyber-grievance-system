@@ -1,5 +1,6 @@
 import easyocr
 import os
+import re
 from PIL import Image, ImageEnhance
 
 class OCRService:
@@ -48,6 +49,26 @@ class OCRService:
             print(f"Preprocessing failed: {e}")
             return image_path # Fallback to original
 
+    def _log_unrenderable_chars(self, text: str) -> list:
+        """
+        Identifies characters outside of English (ASCII) and Hindi (Devanagari) ranges.
+        Devanagari range: \u0900-\u097F
+        """
+        # Define allowed ranges: ASCII (0-127) and Devanagari (0900-097F)
+        # Also include common punctuation and symbols if needed.
+        unsupported = []
+        for char in text:
+            code = ord(char)
+            # Check if outside ASCII and outside Devanagari
+            if not (0 <= code <= 127 or 0x0900 <= code <= 0x097F):
+                unsupported.append({"char": char, "code": hex(code)})
+        
+        if unsupported:
+            unique_unsupported = {f"{u['char']} ({u['code']})" for u in unsupported}
+            print(f"WARNING: Unrenderable or unexpected characters detected: {', '.join(unique_unsupported)}")
+        
+        return unsupported
+
     def extract_text(self, image_path: str):
         """
         Extracts text from an image with preprocessing and error handling.
@@ -95,12 +116,16 @@ class OCRService:
                 except Exception as e:
                     print(f"Failed to cleanup {processed_path}: {e}")
 
+            # Log and check for unrenderable characters
+            unsupported_chars = self._log_unrenderable_chars(raw_text)
+
             return {
                 "raw_text": raw_text,
                 "confidence": avg_confidence,
                 "word_count": word_count,
                 "language_detected": ", ".join(self.langs),
-                "is_clear": is_clear
+                "is_clear": is_clear,
+                "unsupported_chars": unsupported_chars
             }
         except Exception as e:
             # Cleanup if failed
