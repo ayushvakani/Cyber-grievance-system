@@ -11,9 +11,14 @@ const ComplaintForm: React.FC = () => {
     });
     const [file, setFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [status, setStatus] = useState<string>('');
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitState, setSubmitState] = useState<
+        | { type: 'idle' }
+        | { type: 'success'; complaintId: string }
+        | { type: 'error'; message: string }
+    >({ type: 'idle' });
+    const [lastFormData, setLastFormData] = useState<FormData | null>(null);
 
     // Cleanup preview URL on unmount
     useEffect(() => {
@@ -96,13 +101,32 @@ const ComplaintForm: React.FC = () => {
         return Object.keys(newErrors).length === 0;
     };
 
+    const submitToApi = async (data: FormData) => {
+        setIsSubmitting(true);
+        setSubmitState({ type: 'idle' });
+        try {
+            const response = await axios.post('http://localhost:8000/api/complaint/submit', data, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            setSubmitState({ type: 'success', complaintId: response.data.complaint_id });
+            // Clear form on success
+            setFormData({ citizen_name: '', phone: '', location: '', date_of_incident: '', complaint_text: '' });
+            setLastFormData(null);
+            removeFile();
+        } catch (error: any) {
+            console.error('Submission error:', error);
+            const message = error.response?.data?.detail
+                || error.message
+                || 'Something went wrong. Please try again.';
+            setSubmitState({ type: 'error', message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
         if (!validate()) return;
-
-        setIsSubmitting(true);
-        setStatus('Submitting...');
 
         const data = new FormData();
         data.append('citizen_name', formData.citizen_name);
@@ -110,26 +134,14 @@ const ComplaintForm: React.FC = () => {
         data.append('location', formData.location);
         data.append('date_of_incident', formData.date_of_incident);
         data.append('complaint_text', formData.complaint_text);
-        if (file) {
-            data.append('complaint_image', file);
-        }
+        if (file) data.append('complaint_image', file);
 
-        try {
-            const response = await axios.post('http://localhost:8000/api/complaint/submit', data, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
-            setStatus(`Success! Complaint ID: ${response.data.complaint_id}`);
-            // Clear form on success
-            setFormData({ citizen_name: '', phone: '', location: '', date_of_incident: '', complaint_text: '' });
-            removeFile();
-        } catch (error: any) {
-            console.error('Error submitting complaint:', error);
-            setStatus(error.response?.data?.detail || 'Error submitting complaint.');
-        } finally {
-            setIsSubmitting(false);
-        }
+        setLastFormData(data);
+        await submitToApi(data);
+    };
+
+    const handleRetry = async () => {
+        if (lastFormData) await submitToApi(lastFormData);
     };
 
     return (
@@ -236,9 +248,61 @@ const ComplaintForm: React.FC = () => {
                 </button>
             </form>
 
-            {status && (
-                <div className={`mt-6 p-4 rounded-lg text-center font-medium ${status.includes('Success') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
-                    {status}
+            {/* Success Banner */}
+            {submitState.type === 'success' && (
+                <div className="mt-6 p-5 rounded-xl bg-green-50 border border-green-200 flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-0.5">
+                        <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-green-800 text-base">Grievance Submitted Successfully</h3>
+                        <p className="text-sm text-green-700 mt-1">Your complaint has been registered and will be reviewed shortly.</p>
+                        <div className="mt-2 px-3 py-1.5 bg-green-100 rounded-lg inline-block">
+                            <span className="text-xs text-green-600 font-semibold">Complaint ID: </span>
+                            <span className="text-xs font-mono font-bold text-green-800">{submitState.complaintId}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Error Banner with Retry */}
+            {submitState.type === 'error' && (
+                <div className="mt-6 p-5 rounded-xl bg-red-50 border border-red-200">
+                    <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0 mt-0.5">
+                            <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-bold text-red-800 text-base">Submission Failed</h3>
+                            <p className="text-sm text-red-600 mt-1">{submitState.message}</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleRetry}
+                        disabled={isSubmitting}
+                        className="mt-3 w-full py-2 flex items-center justify-center space-x-2 border-2 border-red-400 text-red-700 font-semibold rounded-lg hover:bg-red-100 transition disabled:opacity-50"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Retrying...</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <span>Retry Submission</span>
+                            </>
+                        )}
+                    </button>
                 </div>
             )}
         </div>
