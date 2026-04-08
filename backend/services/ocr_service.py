@@ -129,8 +129,12 @@ class OCRService:
             }
         except Exception as e:
             # Cleanup if failed
+            print(f"[OCR Error] Processing failed for {image_path}: {str(e)}")
             if processed_path != image_path and os.path.exists(processed_path):
-                os.remove(processed_path)
+                try:
+                    os.remove(processed_path)
+                except Exception as cleanup_err:
+                    print(f"[OCR Error] Cleanup failed: {str(cleanup_err)}")
             return {
                 "error": f"OCR processing failed: {str(e)}",
                 "raw_text": "",

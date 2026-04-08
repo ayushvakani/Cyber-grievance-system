@@ -32,7 +32,10 @@ def test_hindi_hinglish():
             print(f"  Error: {result['error']}")
             continue
             
-        print(f"  Extracted Text Sample: {result['raw_text'][:100]}...")
+        try:
+            print(f"  Extracted Text Sample: {result['raw_text'][:100]}...")
+        except UnicodeEncodeError:
+            print(f"  Extracted Text Sample: {result['raw_text'][:100].encode('ascii', 'ignore').decode('ascii')}...")
         print(f"  Confidence: {result['confidence']:.4f}")
         
         # Verify Devanagari detection manually or via regex
