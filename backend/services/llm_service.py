@@ -42,6 +42,15 @@ class MistralService:
 Analyze this cybercrime complaint. Return ONLY a JSON object. No other text.
 
 Categories: UPI Fraud, Phishing, OTP Scam, Ransomware, Identity Theft, Cyber Stalking, Defamation, Hacking, Cyber Bullying, Other
+
+Legal Reference:
+- UPI Fraud/Phishing: ["Section 66D IT Act"]
+- Stalking: ["Section 354D IPC"]
+- Hacking: ["Section 66 IT Act"]
+- Identity Theft: ["Section 66C IT Act"]
+- Defamation: ["Section 500 IPC"]
+- Cyber Bullying: ["Section 67 IT Act"]
+
 Schema:
 {{
   "crime_type": "string (from list above)",
@@ -54,7 +63,7 @@ Schema:
     "amount_lost": 0, "suspect_name": "", "platform": "", "location": ""
   }},
   "summary": "max 2 sentences",
-  "recommended_sections": ["IT Act / IPC sections"]
+  "recommended_sections": ["IT Act / IPC sections (be specific based on reference)"]
 }}
 
 Complaint: "{complaint_text}"
