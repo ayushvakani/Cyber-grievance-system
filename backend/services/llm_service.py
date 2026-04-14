@@ -36,41 +36,30 @@ class MistralService:
 
     def _build_prompt(self, complaint_text: str) -> str:
         """
-        Constructs the master prompt for Mistral.
+        Compact master prompt for lower memory usage.
         """
         return f"""
-You are an expert Indian Cybercrime Analyst. Analyze the following cybercrime complaint and return ONLY a valid JSON object. Do not include any introductory or concluding text.
+Analyze this cybercrime complaint. Return ONLY a JSON object. No other text.
 
-### Supported Crime Types:
-UPI Fraud, Phishing, OTP Scam, Ransomware, Identity Theft, Cyber Stalking, Defamation, Hacking, Cyber Bullying, Other
-
-### JSON Schema:
+Categories: UPI Fraud, Phishing, OTP Scam, Ransomware, Identity Theft, Cyber Stalking, Defamation, Hacking, Cyber Bullying, Other
+Schema:
 {{
-  "crime_type": "string (Categorize into one of the types above)",
-  "severity": "string (Low, Medium, High, Critical)",
-  "severity_reason": "string (One sentence explanation)",
-  "confidence": "number (0.0 to 1.0)",
+  "crime_type": "string (from list above)",
+  "severity": "Low/Medium/High/Critical",
+  "severity_reason": "1-sentence",
+  "confidence": 0.0-1.0,
   "entities": {{
-    "phone_numbers": ["string"],
-    "upi_ids": ["string"],
-    "bank_names": ["string"],
-    "urls_domains": ["string"],
-    "social_handles": ["string"],
-    "crypto_wallets": ["string"],
-    "ip_addresses": ["string"],
-    "amount_lost": "number or null",
-    "suspect_name": "string or null",
-    "platform": "string or null",
-    "location": "string or null"
+    "phone_numbers": [], "upi_ids": [], "bank_names": [], "urls_domains": [], 
+    "social_handles": [], "crypto_wallets": [], "ip_addresses": [],
+    "amount_lost": 0, "suspect_name": "", "platform": "", "location": ""
   }},
-  "summary": "string (Max 2 sentences)",
-  "recommended_sections": ["string (e.g. IT Act 66D, IPC 354D)"]
+  "summary": "max 2 sentences",
+  "recommended_sections": ["IT Act / IPC sections"]
 }}
 
-### Complaint:
-{complaint_text}
+Complaint: "{complaint_text}"
 
-### Response (JSON ONLY):
+Response:
 """
 
     def _parse_response(self, raw_text: str) -> dict:
@@ -177,54 +166,47 @@ UPI Fraud, Phishing, OTP Scam, Ransomware, Identity Theft, Cyber Stalking, Defam
 
     def analyze_complaint(self, complaint_text: str) -> dict:
         """
-        Send structured prompt to Mistral and return a parsed JSON dict.
-        Always returns a dictionary (using a fallback if parsing fails).
+        Sends prompt to Mistral with a retry mechanism for stability.
         """
-        # Default empty/fail dict for early returns
         error_fallback = {
-            "crime_type": "Other",
-            "severity": "Low",
-            "severity_reason": "Inference failed or connection issue.",
-            "confidence": 0.0,
-            "entities": {},
-            "summary": "Processing failed.",
-            "recommended_sections": []
+            "crime_type": "Other", "severity": "Low", "severity_reason": "Service failure.",
+            "confidence": 0.0, "entities": {}, "summary": "Failed.", "recommended_sections": []
         }
 
         if not complaint_text or not complaint_text.strip():
-            logger.warning("[MistralService] Empty complaint text received.")
-            return error_fallback
-
-        if not self._check_connection():
-            # In production, you might raise here, but for the pipeline flow, 
-            # we return a fail state for Day 31 consistency.
-            logger.error("[MistralService] Connection check failed before inference.")
             return error_fallback
 
         full_prompt = self._build_prompt(complaint_text)
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                if not self._check_connection():
+                    raise ConnectionError("Ollama unreachable")
 
-        payload = {
-            "model": self.model,
-            "prompt": full_prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.1  # Day 31 requirement
-            }
-        }
+                logger.info(f"[MistralService] Call attempt {attempt+1}/{max_retries}...")
+                response = requests.post(
+                    self.api_url, 
+                    json={
+                        "model": self.model, 
+                        "prompt": full_prompt, 
+                        "stream": False,
+                        "options": {"temperature": 0.1}
+                    }, 
+                    timeout=90
+                )
+                response.raise_for_status()
+                raw_text = response.json().get("response", "").strip()
+                return self._parse_response(raw_text)
 
-        try:
-            logger.info("[MistralService] Sending structured request (temp=0.1) to Ollama...")
-            response = requests.post(self.api_url, json=payload, timeout=120)
-            response.raise_for_status()
-            data = response.json()
-            raw_text = data.get("response", "").strip()
-            
-            # Parse the response into a dict
-            return self._parse_response(raw_text)
-
-        except Exception as e:
-            logger.error("[MistralService] Unexpected error: %s", e)
-            return error_fallback
+            except Exception as e:
+                logger.warning(f"[MistralService] Attempt {attempt+1} failed: {e}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(5) # Wait for RAM to clear
+                else:
+                    logger.error("[MistralService] All retries failed.")
+                    return error_fallback
 
 
 if __name__ == "__main__":

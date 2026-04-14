@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
@@ -9,6 +9,10 @@ import os
 from backend.db.postgres import get_db
 from backend.models.complaint import Complaint
 from backend.services.ocr_service import OCRService
+from backend.services.pipeline_service import ProcessingPipeline
+
+# Initialize global pipeline instance
+pipeline = ProcessingPipeline()
 
 router = APIRouter()
 
@@ -20,6 +24,7 @@ async def submit_complaint(
     date_of_incident: str = Form(...),
     complaint_text: Optional[str] = Form(None),
     complaint_image: Optional[UploadFile] = File(None),
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -101,6 +106,11 @@ async def submit_complaint(
             db.add(new_complaint)
             db.commit()
             db.refresh(new_complaint)
+
+            # Day 36: Trigger AI Processing in the background
+            if background_tasks:
+                background_tasks.add_task(pipeline.process, new_complaint.id)
+
         except Exception as db_err:
             db.rollback()
             print(f"[Ingestion Error] Database commit failed: {db_err}")
