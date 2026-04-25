@@ -1,0 +1,112 @@
+K J SOMAIYA INSTITUTE OF TECHNOLOGY
+Department of Information Technology  •  Academic Year 2025–2026
+
+AI-Driven Cyber Public Grievance
+Analysis & Resolution Support System
+Day-Wise Implementation Guide  •  All 6 Phases  •  98-Day Plan
+
+
+1. Project Overview
+1.1 Problem Statement
+Indian government grievance portals receive thousands of cybercrime complaints daily — phishing, UPI fraud, OTP scams, ransomware, cyber stalking, and defamation. Current systems depend on manual review and keyword tagging, causing delays, poor prioritization, and inability to detect fraud networks or emerging crime patterns.
+Core Pain Points:
+Manual categorization — officers read each complaint individually
+No semantic understanding — same fraud described differently goes undetected
+No fraud network detection — same UPI ID used in 50 complaints never linked
+No support for image-based complaints — screenshots rejected
+No decision support — officers have no AI-assisted recommendations
+1.2 Proposed Solution
+An end-to-end AI pipeline that accepts text and image complaints, extracts entities using Mistral 7B (Ollama), builds a Neo4j knowledge graph, stores semantic embeddings in ChromaDB, and uses Graph RAG + Corrective RAG (CRAG) to provide intelligent officer recommendations — all running 100% locally on the developer machine.
+1.3 Tech Stack
+
+
+
+2. System Architecture
+2.1 Six-Layer Architecture
+2.2 End-to-End Data Flow
+Citizen submits → FastAPI saves to PostgreSQL → [If image: EasyOCR extracts text] → Mistral 7B extracts crime type + severity + entities → Regex validates → SBERT generates 384-dim embedding → ChromaDB stores vector → Neo4j creates complaint + entity nodes + relationship edges → Graph RAG queries Neo4j + ChromaDB → Corrective RAG evaluates quality → Mistral generates officer recommendation → React dashboard displays insights
+2.3 Corrective RAG (CRAG) — Three Paths
+Based on the CRAG paper by Yan et al. (2024), the system evaluates retrieved documents and follows one of three correction paths:
+
+
+
+3. Project Timeline Overview
+The project spans 14 weeks (98 days) divided into 6 phases. Each phase produces a working, testable deliverable before the next phase begins.
+
+
+
+  PHASE 1    Environment Setup & Project Scaffold    [Days 1–14 | Weeks 1–2]
+Objective: Set up the complete development environment, install all tools, create the project folder structure, and verify that Ollama with Mistral 7B runs correctly on the RTX 2050 GPU.
+Tools to Install
+Ollama — https://ollama.com/download/windows → then: ollama pull mistral
+Python 3.11 + pip packages: fastapi uvicorn pydantic neo4j chromadb sentence-transformers easyocr ollama sqlalchemy psycopg2
+Node.js 18+ → npx create-react-app frontend --template typescript
+Neo4j Desktop — https://neo4j.com/download → create local database
+PostgreSQL 15 — https://www.postgresql.org/download/windows
+Postman — for API testing
+Day-Wise Task Breakdown — Phase 1
+
+
+
+
+  PHASE 2    Complaint Ingestion + OCR Pipeline    [Days 15–28 | Weeks 3–4]
+Objective: Build the citizen complaint submission portal (React form) and the FastAPI ingestion endpoint. Implement EasyOCR for image complaints. Store raw complaints in PostgreSQL.
+Day-Wise Task Breakdown — Phase 2
+
+
+
+
+  PHASE 3    Mistral AI Processing — Classification + Entity Extraction    [Days 29–42 | Weeks 5–6]
+Objective: Build the core AI processing pipeline. A single Mistral 7B call performs crime type classification, severity scoring, and all entity extraction simultaneously. A regex safety net validates critical entities.
+Crime Types Supported
+Day-Wise Task Breakdown — Phase 3
+
+
+
+
+  PHASE 4    SBERT Embeddings + Neo4j Graph + ChromaDB Storage    [Days 43–63 | Weeks 7–9]
+Objective: After Mistral extracts entities, build the dual storage layer. SBERT converts complaint text to vectors stored in ChromaDB. Neo4j builds the knowledge graph connecting complaints through shared entities — enabling fraud network detection.
+Neo4j Graph Node Types
+Day-Wise Task Breakdown — Phase 4
+
+
+
+
+  PHASE 5    Graph RAG + Corrective RAG Implementation    [Days 64–77 | Weeks 10–11]
+Objective: Build the intelligence core of the system. Graph RAG combines Neo4j graph traversal with ChromaDB semantic search to retrieve relevant past cases. Corrective RAG (CRAG) evaluates retrieval quality and follows the Correct / Ambiguous / Incorrect path logic before generating the final officer recommendation.
+Day-Wise Task Breakdown — Phase 5
+
+
+
+
+  PHASE 6    Officer Dashboard + Integration + Testing    [Days 78–98 | Weeks 12–14]
+Objective: Build the complete React officer dashboard, connect all backend APIs, and perform end-to-end testing. The dashboard shows live complaint feeds, severity distribution, fraud network visualization, and AI-generated insights per complaint.
+Dashboard Pages
+Day-Wise Task Breakdown — Phase 6
+
+
+
+
+4. Testing Checklist
+Use this checklist at the end of each phase to verify correctness before moving to the next phase.
+
+
+
+5. Project Folder Structure
+Complete file listing with responsibility for each file.
+
+
+
+6. Key Notes for Viva / Presentation
+Be prepared to explain these points clearly during your final year project viva:
+
+Why Graph RAG over basic RAG — entity-linked complaint retrieval finds fraud networks that semantic search alone cannot detect
+Why Corrective RAG — prevents wrong recommendations when historical data is scarce, handles new crime types gracefully using local knowledge base
+Why Mistral via Ollama — government data privacy requirements, no internet dependency, runs on existing RTX 2050 hardware
+Why EasyOCR over Tesseract — better Hindi+English support, higher accuracy on mobile screenshots common in cybercrime complaints
+Why Neo4j for graph — native graph traversal is far faster than SQL JOINs for multi-hop relationship queries
+Why SBERT all-MiniLM-L6-v2 — 384 dimensions balances accuracy and speed, fits within 4GB VRAM constraint
+The CRAG paper reference — Yan et al., Corrective Retrieval Augmented Generation, 2024
+Why single Mistral call for all extraction — minimizes latency; multiple calls would add 15–25 seconds per complaint
+
+K J Somaiya Institute of Technology  •  Department of Information Technology  •  2025–2026

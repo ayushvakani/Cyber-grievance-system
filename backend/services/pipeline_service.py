@@ -1,16 +1,21 @@
 import json
 import logging
+import asyncio
 from typing import Dict, Any
 from backend.db.postgres import SessionLocal
 from backend.models.complaint import Complaint
 from backend.models.entities import Entity
 from backend.services.llm_service import MistralService
+from backend.services.graph_service import Neo4jGraphService
+from backend.services.embedding_service import EmbeddingService
 
 logger = logging.getLogger(__name__)
 
 class ProcessingPipeline:
     def __init__(self):
         self.llm = MistralService()
+        self.graph_service = Neo4jGraphService()
+        self.emb_service = EmbeddingService()
 
     def process(self, complaint_record_id: int) -> Dict[str, Any]:
         """
@@ -77,6 +82,33 @@ class ProcessingPipeline:
                         entity_value=str(e_value)
                     )
                     db.add(new_entity)
+
+            # Day 53: Pipeline Integration
+            # Call graph_service and embedding_service in parallel using asyncio.gather
+            metadata = {
+                "crime_type": complaint.crime_type,
+                "severity": complaint.severity,
+                "date": str(getattr(complaint, 'created_at', 'Unknown'))
+            }
+            
+            async def parallel_store():
+                emb = self.emb_service.generate_embedding(text)
+                await asyncio.gather(
+                    asyncio.to_thread(self.graph_service.build_complaint_graph, complaint.complaint_id, complaint.crime_type, complaint.severity, entities),
+                    asyncio.to_thread(self.emb_service.store_in_chromadb, complaint.complaint_id, text, emb, metadata)
+                )
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop is None:
+                asyncio.run(parallel_store())
+            else:
+                self.graph_service.build_complaint_graph(complaint.complaint_id, complaint.crime_type, complaint.severity, entities)
+                emb = self.emb_service.generate_embedding(text)
+                self.emb_service.store_in_chromadb(complaint.complaint_id, text, emb, metadata)
 
             complaint.status = "processed"
             db.commit()
