@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     def __init__(self):
         """
-        Day 50 Task: Write EmbeddingService using sentence-transformers. Load model: all-MiniLM-L6-v2.
-        Day 51 Task: Create collection 'cyber_complaints'.
+        Initializes the EmbeddingService by loading the SentenceTransformer model
+        (all-MiniLM-L6-v2) and ensuring the ChromaDB collection 'cyber_complaints' exists.
         """
         logger.info("Loading SentenceTransformer model all-MiniLM-L6-v2...")
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -18,16 +18,30 @@ class EmbeddingService:
 
     def generate_embedding(self, text: str) -> list[float]:
         """
-        Day 50 Task: Add generate_embedding(text) returning 384-dim float list.
+        Generates a 384-dimensional vector embedding for the given text.
+        
+        Args:
+            text (str): The input text to vectorize.
+            
+        Returns:
+            list[float]: A list of floats representing the text embedding.
         """
-        # encode returns a numpy array, we convert to list
-        embedding = self.model.encode(text)
-        return embedding.tolist()
+        try:
+            embedding = self.model.encode(text)
+            return embedding.tolist()
+        except Exception as e:
+            logger.error(f"Error generating embedding: {str(e)}")
+            raise e
 
     def store_in_chromadb(self, complaint_id: str, text: str, embedding: list[float], metadata: dict):
         """
-        Day 51 Task: Add store_in_chromadb(complaint_id, text, embedding, metadata).
-        Store vector with metadata: crime_type, severity, date.
+        Stores the text and its embedding vector into ChromaDB along with metadata.
+        
+        Args:
+            complaint_id (str): Unique identifier for the complaint.
+            text (str): Original text of the complaint.
+            embedding (list[float]): Vector embedding of the text.
+            metadata (dict): Additional information (crime_type, severity, date).
         """
         try:
             # Ensure we only pass the requested primitive metadata to ChromaDB
@@ -50,26 +64,35 @@ class EmbeddingService:
 
     def semantic_search(self, query_text: str, n_results: int = 5):
         """
-        Day 52 Task: Add semantic_search(query_text, n_results=5).
-        Generate embedding for query, call ChromaDB .query().
-        Return top-n with distances and metadata.
-        """
-        query_emb = self.generate_embedding(query_text)
-        results = self.collection.query(
-            query_embeddings=[query_emb],
-            n_results=n_results
-        )
+        Searches ChromaDB for the most semantically similar complaints to the query.
         
-        formatted_results = []
-        if results and results.get("ids") and len(results["ids"]) > 0:
-            for i in range(len(results["ids"][0])):
-                formatted_results.append({
-                    "complaint_id": results["ids"][0][i],
-                    "text": results["documents"][0][i] if results.get("documents") else "",
-                    "metadata": results["metadatas"][0][i] if results.get("metadatas") else {},
-                    "distance": results["distances"][0][i] if results.get("distances") else 0.0
-                })
-        return formatted_results
+        Args:
+            query_text (str): The natural language query.
+            n_results (int): Number of top results to return (default 5).
+            
+        Returns:
+            list: List of dictionaries containing matching complaint IDs, text, metadata, and distances.
+        """
+        try:
+            query_emb = self.generate_embedding(query_text)
+            results = self.collection.query(
+                query_embeddings=[query_emb],
+                n_results=n_results
+            )
+            
+            formatted_results = []
+            if results and results.get("ids") and len(results["ids"]) > 0:
+                for i in range(len(results["ids"][0])):
+                    formatted_results.append({
+                        "complaint_id": results["ids"][0][i],
+                        "text": results["documents"][0][i] if results.get("documents") else "",
+                        "metadata": results["metadatas"][0][i] if results.get("metadatas") else {},
+                        "distance": results["distances"][0][i] if results.get("distances") else 0.0
+                    })
+            return formatted_results
+        except Exception as e:
+            logger.error(f"Error during semantic search: {str(e)}")
+            return []
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

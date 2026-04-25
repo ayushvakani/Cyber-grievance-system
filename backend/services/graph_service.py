@@ -6,8 +6,8 @@ logger = logging.getLogger(__name__)
 class Neo4jGraphService:
     def __init__(self):
         """
-        Day 43 Task: Write Neo4jGraphService in graph_service.py. 
-        Test connection with a simple Cypher query.
+        Initializes the Neo4jGraphService, tests the database connection, 
+        and creates necessary indexes for performance optimization.
         """
         try:
             with get_neo4j_session() as session:
@@ -15,15 +15,39 @@ class Neo4jGraphService:
                 record = result.single()
                 if record and record["result"] == 1:
                     logger.info("Neo4jGraphService: Connection test successful.")
+                    
+                    # Day 58: Add Neo4j indexes for faster lookups
+                    session.run("CREATE INDEX complaint_id_idx IF NOT EXISTS FOR (c:Complaint) ON (c.complaint_id)")
+                    session.run("CREATE INDEX phone_number_idx IF NOT EXISTS FOR (p:PhoneNumber) ON (p.number)")
+                    session.run("CREATE INDEX upi_id_idx IF NOT EXISTS FOR (u:UpiId) ON (u.upi_id)")
+                    logger.info("Neo4jGraphService: Indexes verified/created successfully.")
                 else:
                     logger.error("Neo4jGraphService: Connection test failed.")
         except Exception as e:
             logger.error(f"Neo4jGraphService: Error connecting to Neo4j - {str(e)}")
 
+    def _merge_entities(self, session, complaint_id: str, entities: list, node_label: str, property_name: str, rel_type: str):
+        """Helper method to execute MERGE queries for different entity types."""
+        if not entities:
+            return
+        query = f"""
+        MATCH (c:Complaint {{complaint_id: $complaint_id}})
+        UNWIND $entities AS entity_val
+        MERGE (n:{node_label} {{{property_name}: entity_val}})
+        MERGE (c)-[:{rel_type}]->(n)
+        """
+        session.run(query, complaint_id=complaint_id, entities=entities)
+
     def build_complaint_graph(self, complaint_id: str, crime_type: str, severity: str, entities: dict):
         """
-        Creates Complaint node and links it to extracted entity nodes.
-        Implements Days 44, 45, 46, and 47 tasks.
+        Creates a central Complaint node and links it to extracted entity nodes
+        (PhoneNumbers, UpiIds, CryptoWallets, etc.) using relationships.
+        
+        Args:
+            complaint_id (str): Unique ID of the complaint.
+            crime_type (str): Classification of the crime.
+            severity (str): Severity level.
+            entities (dict): Dictionary of extracted entities.
         """
         try:
             with get_neo4j_session() as session:
@@ -37,68 +61,13 @@ class Neo4jGraphService:
                 session.run(query_complaint, complaint_id=complaint_id, crime_type=crime_type, severity=severity)
                 logger.info(f"Merged Complaint node for {complaint_id}")
 
-                # Step 2: Phone + UPI Nodes (Day 45)
-                phone_numbers = entities.get("phone_numbers", [])
-                if phone_numbers:
-                    query_phone = """
-                    MATCH (c:Complaint {complaint_id: $complaint_id})
-                    UNWIND $phone_numbers AS phone
-                    MERGE (p:PhoneNumber {number: phone})
-                    MERGE (c)-[:INVOLVES_PHONE]->(p)
-                    """
-                    session.run(query_phone, complaint_id=complaint_id, phone_numbers=phone_numbers)
-
-                upi_ids = entities.get("upi_ids", [])
-                if upi_ids:
-                    query_upi = """
-                    MATCH (c:Complaint {complaint_id: $complaint_id})
-                    UNWIND $upi_ids AS upi
-                    MERGE (u:UpiId {upi_id: upi})
-                    MERGE (c)-[:INVOLVES_UPI]->(u)
-                    """
-                    session.run(query_upi, complaint_id=complaint_id, upi_ids=upi_ids)
-
-                # Day 46: Bank + URL + Social Nodes
-                bank_names = entities.get("bank_names", [])
-                if bank_names:
-                    query_bank = """
-                    MATCH (c:Complaint {complaint_id: $complaint_id})
-                    UNWIND $bank_names AS bank
-                    MERGE (b:BankName {name: bank})
-                    MERGE (c)-[:INVOLVES_BANK]->(b)
-                    """
-                    session.run(query_bank, complaint_id=complaint_id, bank_names=bank_names)
-
-                urls_domains = entities.get("urls_domains", [])
-                if urls_domains:
-                    query_url = """
-                    MATCH (c:Complaint {complaint_id: $complaint_id})
-                    UNWIND $urls_domains AS url
-                    MERGE (u:UrlDomain {url: url})
-                    MERGE (c)-[:INVOLVES_URL]->(u)
-                    """
-                    session.run(query_url, complaint_id=complaint_id, urls_domains=urls_domains)
-
-                social_handles = entities.get("social_handles", [])
-                if social_handles:
-                    query_social = """
-                    MATCH (c:Complaint {complaint_id: $complaint_id})
-                    UNWIND $social_handles AS handle
-                    MERGE (s:SocialHandle {handle: handle})
-                    MERGE (c)-[:INVOLVES_SOCIAL]->(s)
-                    """
-                    session.run(query_social, complaint_id=complaint_id, social_handles=social_handles)
-
-                # Day 47: Crypto + Location Nodes
-                crypto_wallets = entities.get("crypto_wallets", [])
-                if crypto_wallets:
-                    query_crypto = """
-                    MATCH (c:Complaint {complaint_id: $complaint_id})
-                    UNWIND $crypto_wallets AS wallet
-                    MERGE (w:CryptoWallet {address: wallet})
-                    MERGE (c)-[:INVOLVES_WALLET]->(w)
-                    """
-                    session.run(query_crypto, complaint_id=complaint_id, crypto_wallets=crypto_wallets)
+                # Step 2: Merge Entities using helper method
+                self._merge_entities(session, complaint_id, entities.get("phone_numbers", []), "PhoneNumber", "number", "INVOLVES_PHONE")
+                self._merge_entities(session, complaint_id, entities.get("upi_ids", []), "UpiId", "upi_id", "INVOLVES_UPI")
+                self._merge_entities(session, complaint_id, entities.get("bank_names", []), "BankName", "name", "INVOLVES_BANK")
+                self._merge_entities(session, complaint_id, entities.get("urls_domains", []), "UrlDomain", "url", "INVOLVES_URL")
+                self._merge_entities(session, complaint_id, entities.get("social_handles", []), "SocialHandle", "handle", "INVOLVES_SOCIAL")
+                self._merge_entities(session, complaint_id, entities.get("crypto_wallets", []), "CryptoWallet", "address", "INVOLVES_WALLET")
 
                 location = entities.get("location")
                 if location:
@@ -117,9 +86,14 @@ class Neo4jGraphService:
 
     def find_related_complaints(self, complaint_id: str):
         """
-        Day 48 Task: Fraud Network Query
-        Day 49 Task: Graph Scoring (Add similarity score: shared_entities / max_entities)
-        Returns related complaint_ids, shared entities, and similarity score.
+        Executes a Fraud Network Query to find other complaints that share entities 
+        with the given complaint. Calculates a normalized similarity score.
+        
+        Args:
+            complaint_id (str): The target complaint ID.
+            
+        Returns:
+            list: List of dictionaries containing related complaints, shared entities, and scores.
         """
         try:
             with get_neo4j_session() as session:

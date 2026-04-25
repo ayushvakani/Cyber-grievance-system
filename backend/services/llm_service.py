@@ -3,6 +3,7 @@ import re
 import requests
 import json
 import logging
+import time
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -126,11 +127,19 @@ Response:
         """
         Runs regex safety checks to catch entities the LLM might have missed.
         Merges regex-found entities into the existing entities dictionary.
+        
+        Args:
+            text (str): The raw complaint text.
+            entities (dict): The dictionary of entities extracted by the LLM.
+            
+        Returns:
+            dict: The updated dictionary with merged regex-extracted entities.
         """
         if not text:
             return entities
 
-        # 1. Indian Phone Numbers (+91 or 10 digits)
+        try:
+            # 1. Indian Phone Numbers (+91 or 10 digits)
         phone_regex = r"(?:\+91[\-\s]?)?[6-9]\d{9}"
         found_phones = re.findall(phone_regex, text)
         entities['phone_numbers'] = list(set(entities.get('phone_numbers', []) + found_phones))
@@ -170,6 +179,9 @@ Response:
         # Given the schema in Day 32, we didn't have a separate 'ifsc' key, 
         # so I'll append it to bank_names for now or we can expand the schema.
         entities['bank_names'] = list(set(entities.get('bank_names', []) + found_ifsc))
+
+        except Exception as e:
+            logger.error("[MistralService] Error in validate_entities regex processing: %s", e)
 
         return entities
 
@@ -211,7 +223,6 @@ Response:
             except Exception as e:
                 logger.warning(f"[MistralService] Attempt {attempt+1} failed: {e}")
                 if attempt < max_retries - 1:
-                    import time
                     time.sleep(5) # Wait for RAM to clear
                 else:
                     logger.error("[MistralService] All retries failed.")

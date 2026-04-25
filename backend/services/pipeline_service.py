@@ -13,13 +13,30 @@ logger = logging.getLogger(__name__)
 
 class ProcessingPipeline:
     def __init__(self):
+        """
+        Initializes the ProcessingPipeline by instantiating the required services:
+        - MistralService (for LLM analysis)
+        - Neo4jGraphService (for Fraud Network graph generation)
+        - EmbeddingService (for ChromaDB semantic vectors)
+        """
         self.llm = MistralService()
         self.graph_service = Neo4jGraphService()
         self.emb_service = EmbeddingService()
 
     def process(self, complaint_record_id: int) -> Dict[str, Any]:
         """
-        Runs the end-to-end processing for a complaint.
+        Runs the end-to-end processing for a single complaint.
+        1. Fetches complaint from PostgreSQL.
+        2. Analyzes text using local Mistral LLM.
+        3. Enriches and validates entities via regex.
+        4. Updates PostgreSQL with parsed data and entities.
+        5. Spawns parallel tasks to generate/store Chroma embeddings and Neo4j graph nodes.
+        
+        Args:
+            complaint_record_id (int): The primary key ID of the complaint in PostgreSQL.
+            
+        Returns:
+            Dict[str, Any]: Processing status and the extracted AI data payload.
         """
         db = SessionLocal()
         complaint = None
