@@ -140,45 +140,40 @@ Response:
 
         try:
             # 1. Indian Phone Numbers (+91 or 10 digits)
-        phone_regex = r"(?:\+91[\-\s]?)?[6-9]\d{9}"
-        found_phones = re.findall(phone_regex, text)
-        entities['phone_numbers'] = list(set(entities.get('phone_numbers', []) + found_phones))
+            phone_regex = r"(?:\+91[\-\s]?)?[6-9]\d{9}"
+            found_phones = re.findall(phone_regex, text)
+            entities['phone_numbers'] = list(set(entities.get('phone_numbers', []) + found_phones))
 
-        # 2. UPI IDs (word@word format)
-        upi_regex = r"[\w.\-]+@[\w.\-]+"
-        found_upis = [u.strip(".,!?") for u in re.findall(upi_regex, text)]
-        entities['upi_ids'] = list(set(entities.get('upi_ids', []) + found_upis))
+            # 2. UPI IDs (word@word format)
+            upi_regex = r"[\w.\-]+@[\w.\-]+"
+            found_upis = [u.strip(".,!?") for u in re.findall(upi_regex, text)]
+            entities['upi_ids'] = list(set(entities.get('upi_ids', []) + found_upis))
 
-        # 3. IP Addresses (IPv4)
-        ip_regex = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
-        found_ips = re.findall(ip_regex, text)
-        entities['ip_addresses'] = list(set(entities.get('ip_addresses', []) + found_ips))
+            # 3. IP Addresses (IPv4)
+            ip_regex = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
+            found_ips = re.findall(ip_regex, text)
+            entities['ip_addresses'] = list(set(entities.get('ip_addresses', []) + found_ips))
 
-        # 4. URLs / Domains
-        # Simple pattern for URLs and domains
-        url_regex = r"https?://[^\s]+|[\w\-]+\.[a-z]{2,}(?:/[^\s]*)?"
-        found_urls = [url.strip(".,!?") for url in re.findall(url_regex, text)]
-        entities['urls_domains'] = list(set(entities.get('urls_domains', []) + found_urls))
+            # 4. URLs / Domains
+            url_regex = r"https?://[^\s]+|[\w\-]+\.[a-z]{2,}(?:/[^\s]*)?"
+            found_urls = [url.strip(".,!?") for url in re.findall(url_regex, text)]
+            entities['urls_domains'] = list(set(entities.get('urls_domains', []) + found_urls))
 
-        # 5. Crypto Wallets
-        btc_regex = r"\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b"
-        eth_regex = r"\b0x[a-fA-F0-9]{40}\b"
-        found_crypto = re.findall(btc_regex, text) + re.findall(eth_regex, text)
-        entities['crypto_wallets'] = list(set(entities.get('crypto_wallets', []) + found_crypto))
+            # 5. Crypto Wallets
+            btc_regex = r"\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b"
+            eth_regex = r"\b0x[a-fA-F0-9]{40}\b"
+            found_crypto = re.findall(btc_regex, text) + re.findall(eth_regex, text)
+            entities['crypto_wallets'] = list(set(entities.get('crypto_wallets', []) + found_crypto))
 
-        # 6. Bank Accounts (9-18 digits)
-        bank_regex = r"\b[0-9]{9,18}\b"
-        found_accounts = re.findall(bank_regex, text)
-        entities['bank_names'] = list(set(entities.get('bank_names', []) + found_accounts)) # Heuristic
+            # 6. Bank Accounts (9-18 digits)
+            bank_regex = r"\b[0-9]{9,18}\b"
+            found_accounts = re.findall(bank_regex, text)
+            entities['bank_names'] = list(set(entities.get('bank_names', []) + found_accounts))
 
-        # 7. IFSC Codes
-        ifsc_regex = r"\b[A-Z]{4}0[A-Z0-9]{6}\b"
-        found_ifsc = re.findall(ifsc_regex, text)
-        # Note: We can add a separate 'ifsc_codes' key or keep in 'bank_names'
-        # For Day 34, let's keep it in 'bank_names' or add a designated key if desired.
-        # Given the schema in Day 32, we didn't have a separate 'ifsc' key, 
-        # so I'll append it to bank_names for now or we can expand the schema.
-        entities['bank_names'] = list(set(entities.get('bank_names', []) + found_ifsc))
+            # 7. IFSC Codes
+            ifsc_regex = r"\b[A-Z]{4}0[A-Z0-9]{6}\b"
+            found_ifsc = re.findall(ifsc_regex, text)
+            entities['bank_names'] = list(set(entities.get('bank_names', []) + found_ifsc))
 
         except Exception as e:
             logger.error("[MistralService] Error in validate_entities regex processing: %s", e)

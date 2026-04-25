@@ -1,0 +1,5 @@
+CERT-In Advisories on Cyber Security:
+1. Phishing attacks: Users should not click on suspicious links in emails or SMS claiming to be from banks or delivery services.
+2. Ransomware: Maintain offline backups of critical data. Keep software patched.
+3. UPI Scams: Do not enter UPI PIN to receive money. PIN is only for sending money.
+4. Social Engineering: Beware of callers pretending to be customer care executives asking for OTPs or screen sharing apps (like AnyDesk/TeamViewer).

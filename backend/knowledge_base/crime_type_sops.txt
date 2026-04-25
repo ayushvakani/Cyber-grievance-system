@@ -1,0 +1,8 @@
+SOP for Financial Fraud:
+1. Immediately freeze the destination bank accounts.
+2. Retrieve KYC details and call data records (CDR) of the suspect numbers.
+3. Notify the nodal officer of the respective bank/wallet.
+SOP for Social Media Harassment/Impersonation:
+1. Preserve the profile URL and screenshots.
+2. Send an emergency takedown request to the platform under Section 79 of the IT Act.
+3. Request IP logs and creation details of the fake profile.

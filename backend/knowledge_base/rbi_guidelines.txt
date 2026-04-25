@@ -1,0 +1,4 @@
+RBI Guidelines on unauthorized digital transactions:
+1. Zero Liability of a Customer: A customer has zero liability if the unauthorized transaction occurs due to a contributory fraud/negligence/deficiency on the part of the bank, or a third-party breach where the customer notifies the bank within 3 working days.
+2. Limited Liability: If the customer notifies within 4 to 7 working days, liability is capped depending on the account type.
+3. The bank must credit the amount involved in the unauthorized electronic transaction to the customer's account within 10 working days of notification.
