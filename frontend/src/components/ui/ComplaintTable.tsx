@@ -54,7 +54,7 @@ export default function ComplaintTable({ complaints, loading, onInsights }: Comp
               <tr
                 key={c.complaint_id}
                 className="border-b border-gray-50 hover:bg-red-50 transition-colors duration-100 cursor-pointer"
-                onClick={() => navigate(`/complaints/${c.complaint_id}`)}
+                onClick={() => navigate(`/admin/complaints/${c.complaint_id}`)}
               >
                 <td className="py-3 pr-3 font-mono text-xs text-gov-blue">{c.complaint_id}</td>
                 <td className="py-3 pr-3 font-medium text-gray-800 max-w-[120px] truncate">{c.citizen_name}</td>

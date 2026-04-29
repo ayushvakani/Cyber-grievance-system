@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { api } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
 import {
   LayoutDashboard,
   FileText,
@@ -8,24 +9,32 @@ import {
   ShieldAlert,
   Settings,
   LogOut,
+  Home,
   Cpu,
 } from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/complaints", label: "Complaints", icon: FileText },
-  { to: "/network", label: "Fraud Network", icon: Network },
-  { to: "/alerts", label: "Alerts", icon: ShieldAlert },
-  { to: "/pipeline", label: "AI Pipeline", icon: Cpu },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/complaints", label: "Complaints", icon: FileText },
+  { to: "/admin/network", label: "Fraud Network", icon: Network },
+  { to: "/admin/alerts", label: "Alerts", icon: ShieldAlert },
+  { to: "/admin/pipeline", label: "AI Pipeline", icon: Cpu },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Sidebar() {
   const [anomalyCount, setAnomalyCount] = useState(0);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.getAnomaliesCount().then(setAnomalyCount).catch(() => {});
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <aside className="w-56 bg-gray-900 text-gray-100 flex flex-col min-h-screen flex-shrink-0">
@@ -63,11 +72,21 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gray-700 text-xs text-gray-500">
-        <div className="flex items-center gap-2 cursor-pointer hover:text-red-400 transition-colors">
+      <div className="px-4 py-3 border-t border-gray-700 space-y-2">
+        <NavLink
+          to="/"
+          className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer hover:text-blue-400 transition-colors"
+        >
+          <Home size={14} />
+          <span>Public Portal</span>
+        </NavLink>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 text-xs text-gray-500 cursor-pointer hover:text-red-400 transition-colors"
+        >
           <LogOut size={14} />
           <span>Sign Out</span>
-        </div>
+        </button>
       </div>
     </aside>
   );

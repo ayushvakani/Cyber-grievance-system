@@ -210,7 +210,7 @@ export default function Complaints() {
             {!loading && pageData.map((c) => (
               <tr
                 key={c.complaint_id}
-                onClick={() => navigate(`/complaints/${c.complaint_id}`)}
+                onClick={() => navigate(`/admin/complaints/${c.complaint_id}`)}
                 className="border-b border-gray-50 hover:bg-[#F3F4E5]/60 cursor-pointer transition-colors group"
               >
                 <td className="px-4 py-3 font-mono text-xs text-gray-400 group-hover:text-gov-primary transition-colors">

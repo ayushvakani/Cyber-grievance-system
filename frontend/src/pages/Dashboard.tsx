@@ -15,6 +15,7 @@ export default function Dashboard() {
 
   // Day 87: Filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [filterCrime, setFilterCrime] = useState("All");
   const [filterSeverity, setFilterSeverity] = useState("All");
 
@@ -24,7 +25,7 @@ export default function Dashboard() {
       const [statsData, recentData] = await Promise.all([
         api.getDashboardStats(),
         api.getRecentComplaints({
-          query: searchQuery,
+          query: appliedSearch,
           crime_type: filterCrime,
           severity: filterSeverity
         }, 50),
@@ -36,7 +37,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, filterCrime, filterSeverity]);
+  }, [appliedSearch, filterCrime, filterSeverity]);
 
   useEffect(() => {
     loadData();
@@ -147,7 +148,11 @@ export default function Dashboard() {
             className="bg-transparent border-none outline-none text-sm w-full text-gray-800 placeholder-gray-400"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadData()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setAppliedSearch(searchQuery);
+              }
+            }}
           />
         </div>
 
@@ -158,10 +163,11 @@ export default function Dashboard() {
         >
           <option value="All">All Crimes</option>
           <option value="Financial Fraud">Financial Fraud</option>
-          <option value="Phishing">Phishing</option>
-          <option value="Ransomware">Ransomware</option>
+          <option value="Phishing/Fraud">Phishing/Fraud</option>
+          <option value="Ransomware/Hacking">Ransomware/Hacking</option>
           <option value="Identity Theft">Identity Theft</option>
           <option value="Cyberbullying">Cyberbullying</option>
+          <option value="UPI/OTP Scam">UPI/OTP Scam</option>
         </select>
 
         <select 
@@ -177,7 +183,7 @@ export default function Dashboard() {
         </select>
 
         <button 
-          onClick={loadData}
+          onClick={() => setAppliedSearch(searchQuery)}
           className="bg-gov-primary hover:bg-red-800 text-white text-sm font-semibold px-4 py-1.5 rounded transition-colors"
         >
           Search
