@@ -203,31 +203,49 @@ export default function FraudNetwork() {
               Loading graph data...
             </div>
           )}
-          {isDemo && !loading && (
-            <div className="absolute top-2 left-2 z-10 bg-amber-50 border border-amber-300 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
-              ⚠ Demo Mode — Neo4j offline. Showing sample network.
-            </div>
-          )}
+
           {!loading && !error && graphData.nodes.length > 0 && (
             <ForceGraph2D
               ref={graphRef}
               graphData={graphData}
               nodeLabel={(n: any) => `${n.id} · ${n.crime_type}`}
-              nodeColor={(n: any) => n.highlighted === false ? "#e5e7eb" : n.color}
-              nodeRelSize={5}
-              linkColor={() => "#d1d5db"}
-              linkWidth={1}
+              nodeColor={(n: any) =>
+                n.highlighted === false ? "#e5e7eb" : n.color
+              }
+              nodeRelSize={6}
+              linkColor={() => "#94a3b8"}
+              linkWidth={1.5}
+              linkDirectionalParticles={2}
+              linkDirectionalParticleWidth={2}
               onNodeClick={handleNodeClick}
-              backgroundColor="#F3F4E5"
-              nodeCanvasObjectMode={() => "after"}
-              nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-                if (globalScale < 2) return;
-                const label = node.id?.slice(-6) ?? "";
-                ctx.font = `${8 / globalScale}px Inter`;
-                ctx.fillStyle = "#374151";
-                ctx.textAlign = "center";
-                ctx.fillText(label, node.x, node.y + 8);
+              backgroundColor="#F8FAFC"
+              cooldownTicks={120}
+              d3AlphaDecay={0.01}
+              d3VelocityDecay={0.3}
+              d3Force={(engine: any) => {
+                engine.force("charge").strength(-300);
+                engine.force("link").distance(60).strength(1);
+                engine.force("center")?.strength(0.5);
               }}
+              nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                const r = 6;
+                // Draw node circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+                ctx.fillStyle = node.highlighted === false ? "#e5e7eb" : node.color;
+                ctx.fill();
+                ctx.strokeStyle = node.highlighted ? "#fff" : "rgba(255,255,255,0.5)";
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                // Draw label always visible
+                const label = node.id ?? "";
+                ctx.font = `bold ${11 / globalScale}px Inter, sans-serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "top";
+                ctx.fillStyle = node.highlighted === false ? "#9ca3af" : "#1e293b";
+                ctx.fillText(label, node.x, node.y + r + 2);
+              }}
+              nodeCanvasObjectMode={() => "replace"}
             />
           )}
         </div>

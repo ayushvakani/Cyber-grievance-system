@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import complaint, rag, dashboard, fraud_network, alerts
+from backend.routers import complaint, rag, dashboard, fraud_network, alerts, demo
 import uvicorn
 
 app = FastAPI(title="Cyber Grievance System")
@@ -20,6 +20,7 @@ app.include_router(rag.router)
 app.include_router(dashboard.router)
 app.include_router(fraud_network.router)
 app.include_router(alerts.router)
+app.include_router(demo.router)
 
 @app.get("/health")
 async def health_check():

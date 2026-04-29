@@ -58,6 +58,16 @@ export const api = {
     return res.json();
   },
 
+  simulatePipeline: async (text: string) => {
+    const res = await fetch(`${BASE_URL}/api/demo/simulate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error("Simulation failed");
+    return res.json();
+  },
+
   getAnomalies: async (): Promise<RecentComplaint[]> => {
     const res = await fetch(`${BASE_URL}/api/alerts/anomalies`);
     if (!res.ok) throw new Error("Failed to fetch anomalies");

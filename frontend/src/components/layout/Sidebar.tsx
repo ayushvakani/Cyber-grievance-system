@@ -8,6 +8,7 @@ import {
   ShieldAlert,
   Settings,
   LogOut,
+  Cpu,
 } from "lucide-react";
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
   { to: "/complaints", label: "Complaints", icon: FileText },
   { to: "/network", label: "Fraud Network", icon: Network },
   { to: "/alerts", label: "Alerts", icon: ShieldAlert },
+  { to: "/pipeline", label: "AI Pipeline", icon: Cpu },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 

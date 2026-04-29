@@ -207,7 +207,11 @@ Response:
                         "model": self.model, 
                         "prompt": full_prompt, 
                         "stream": False,
-                        "options": {"temperature": 0.1}
+                        "options": {
+                            "temperature": 0.0,
+                            "num_predict": 200,  # Cap output tokens to stop it from rambling
+                            "num_ctx": 1024      # Smaller context window for much faster processing
+                        }
                     }, 
                     timeout=90
                 )
