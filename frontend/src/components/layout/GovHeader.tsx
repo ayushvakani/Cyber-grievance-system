@@ -1,0 +1,31 @@
+// Government of India Official Header
+export default function GovHeader() {
+  return (
+    <header className="bg-gov-header text-white shadow-md">
+      {/* Top stripe */}
+      <div className="bg-gov-primary px-6 py-1 flex items-center justify-between text-xs">
+        <span className="font-medium tracking-wider">भारत सरकार • GOVERNMENT OF INDIA</span>
+        <span className="opacity-80">Ministry of Home Affairs — Cyber Crime Division</span>
+      </div>
+
+      {/* Main header bar */}
+      <div className="px-6 py-3 flex items-center gap-4">
+        {/* Seal placeholder */}
+        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-full border-2 border-gov-primary flex items-center justify-center">
+            <span className="text-gov-primary font-bold text-xs">🔵</span>
+          </div>
+        </div>
+
+        <div>
+          <h1 className="text-xl font-bold tracking-tight leading-tight">
+            Cyber Public Grievance System
+          </h1>
+          <p className="text-xs opacity-80 font-medium">
+            AI-Powered Complaint Investigation Portal — Official Use Only
+          </p>
+        </div>
+      </div>
+    </header>
+  );
+}

@@ -6,7 +6,7 @@ Live demo of the Graph RAG-based Complaint Retrieval System.
 
 Flow:
   [Complaint Input]
-     -> [1] Entity Extraction          (MistralService.analyze_complaint)
+     -> [1] Entity Extraction          (LLMService / llama3.2:3b via Ollama)
      -> [2] Graph Retrieval            (Neo4jGraphService.find_related_complaints)
      -> [3] Semantic Retrieval         (EmbeddingService.semantic_search)
      -> [4] PostgreSQL Text Fetch      (batch IN query - single round trip)
@@ -14,6 +14,8 @@ Flow:
      -> [6] CRAG Evaluation            (CorrectiveRAGService.evaluate_retrieval)
      -> [7] Final Recommendation       (CorrectiveRAGService.process)
   [Structured JSON Output]
+
+Model: Configured via MODEL_NAME in .env (default: llama3.2:3b)
 """
 
 import io
@@ -71,11 +73,12 @@ def run_presentation() -> None:
     mistral   = MistralService()
     rag_svc   = GraphRAGService()          # owns Neo4j + ChromaDB internally
     crag_svc  = CorrectiveRAGService()
+    print(f"  Active LLM model : {mistral.model}")
     print(f"  Services ready in {time.time() - t0:.1f}s\n")
 
     # ── Step 1: Entity Extraction ─────────────────────────────────────────────
     t0 = time.time()
-    section("[1/7] ENTITY EXTRACTION  (MistralService.analyze_complaint)")
+    section(f"[1/7] ENTITY EXTRACTION  (LLMService: {mistral.model})")
     analysis   = mistral.analyze_complaint(COMPLAINT_TEXT)
     crime_type = analysis.get("crime_type", "N/A")
     severity   = analysis.get("severity",   "N/A")

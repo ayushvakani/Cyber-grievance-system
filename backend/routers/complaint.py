@@ -16,6 +16,41 @@ pipeline = ProcessingPipeline()
 
 router = APIRouter()
 
+@router.get("/api/complaint/{complaint_id}/detail")
+def get_complaint_detail(complaint_id: str, db: Session = Depends(get_db)):
+    """Day 84: Returns full complaint fields for the detail page."""
+    c = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+
+    # Parse entities JSON if stored as string
+    import json
+    entities = {}
+    if c.recommended_sections:
+        try:
+            entities = json.loads(c.recommended_sections)
+        except Exception:
+            entities = {}
+
+    return {
+        "complaint_id": c.complaint_id,
+        "citizen_name": c.citizen_name,
+        "phone": c.phone,
+        "location": c.location,
+        "date_of_incident": c.date_of_incident,
+        "complaint_text": c.complaint_text,
+        "raw_text": c.raw_text,
+        "crime_type": c.crime_type,
+        "severity": c.severity,
+        "severity_reason": c.severity_reason,
+        "confidence": c.confidence,
+        "summary": c.summary,
+        "recommended_sections": c.recommended_sections,
+        "status": c.status,
+        "created_at": c.created_at.isoformat() if c.created_at else None,
+    }
+
+
 @router.post("/api/complaint/submit")
 async def submit_complaint(
     citizen_name: str = Form(...),
