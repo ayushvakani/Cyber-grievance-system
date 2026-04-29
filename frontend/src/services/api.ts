@@ -27,6 +27,12 @@ export interface FraudNetworkData {
   edge_count: number;
 }
 
+export interface ComplaintFilters {
+  query?: string;
+  crime_type?: string;
+  severity?: string;
+}
+
 export const api = {
   getDashboardStats: async (): Promise<DashboardStats> => {
     const res = await fetch(`${BASE_URL}/api/dashboard/stats`);
@@ -34,8 +40,14 @@ export const api = {
     return res.json();
   },
 
-  getRecentComplaints: async (limit = 10): Promise<RecentComplaint[]> => {
-    const res = await fetch(`${BASE_URL}/api/dashboard/recent?limit=${limit}`);
+  getRecentComplaints: async (filters?: ComplaintFilters, limit = 50): Promise<RecentComplaint[]> => {
+    const params = new URLSearchParams();
+    params.append("limit", limit.toString());
+    if (filters?.query) params.append("query", filters.query);
+    if (filters?.crime_type && filters.crime_type !== "All") params.append("crime_type", filters.crime_type);
+    if (filters?.severity && filters.severity !== "All") params.append("severity", filters.severity);
+    
+    const res = await fetch(`${BASE_URL}/api/dashboard/recent?${params.toString()}`);
     if (!res.ok) throw new Error("Failed to fetch recent complaints");
     return res.json();
   },
@@ -44,6 +56,19 @@ export const api = {
     const res = await fetch(`${BASE_URL}/api/dashboard/fraud-network`);
     if (!res.ok) throw new Error("Failed to fetch fraud network");
     return res.json();
+  },
+
+  getAnomalies: async (): Promise<RecentComplaint[]> => {
+    const res = await fetch(`${BASE_URL}/api/alerts/anomalies`);
+    if (!res.ok) throw new Error("Failed to fetch anomalies");
+    return res.json();
+  },
+
+  getAnomaliesCount: async (): Promise<number> => {
+    const res = await fetch(`${BASE_URL}/api/alerts/count`);
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.count;
   },
 
   getComplaintInsights: async (id: string) => {

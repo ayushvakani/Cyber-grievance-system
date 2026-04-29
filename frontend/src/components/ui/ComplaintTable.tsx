@@ -16,8 +16,9 @@ export default function ComplaintTable({ complaints, loading, onInsights }: Comp
   const [page, setPage] = useState(0);
   const navigate = useNavigate();
 
-  const totalPages = Math.ceil(complaints.length / PAGE_SIZE);
-  const paged = complaints.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  const safeComplaints = Array.isArray(complaints) ? complaints : [];
+  const totalPages = Math.ceil(safeComplaints.length / PAGE_SIZE);
+  const paged = safeComplaints.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   if (loading) {
     return (
@@ -29,7 +30,7 @@ export default function ComplaintTable({ complaints, loading, onInsights }: Comp
     );
   }
 
-  if (complaints.length === 0) {
+  if (safeComplaints.length === 0) {
     return <p className="text-sm text-gray-400 text-center py-8">No complaints found.</p>;
   }
 
@@ -77,7 +78,10 @@ export default function ComplaintTable({ complaints, loading, onInsights }: Comp
                 </td>
                 <td className="py-3">
                   <button
-                    onClick={() => onInsights(c.complaint_id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onInsights(c.complaint_id);
+                    }}
                     className="flex items-center gap-1 text-xs font-semibold text-gov-blue bg-blue-50 hover:bg-gov-blue hover:text-white px-2.5 py-1.5 rounded border border-blue-200 hover:border-gov-blue transition-all duration-150"
                   >
                     <Brain size={12} />
@@ -94,7 +98,7 @@ export default function ComplaintTable({ complaints, loading, onInsights }: Comp
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
           <span className="text-xs text-gray-400">
-            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, complaints.length)} of {complaints.length}
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, safeComplaints.length)} of {safeComplaints.length}
           </span>
           <div className="flex items-center gap-1">
             <button

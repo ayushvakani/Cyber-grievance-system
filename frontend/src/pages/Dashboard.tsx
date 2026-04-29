@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { FileText, ShieldAlert, CheckCircle, Network, AlertTriangle } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { FileText, ShieldAlert, CheckCircle, Network, AlertTriangle, Search, Filter } from "lucide-react";
 import { StatCard, Card } from "../components/ui/Card";
 import CrimeBarChart from "../components/ui/CrimeBarChart";
 import ComplaintTable from "../components/ui/ComplaintTable";
@@ -13,23 +13,34 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Day 87: Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCrime, setFilterCrime] = useState("All");
+  const [filterSeverity, setFilterSeverity] = useState("All");
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [statsData, recentData] = await Promise.all([
+        api.getDashboardStats(),
+        api.getRecentComplaints({
+          query: searchQuery,
+          crime_type: filterCrime,
+          severity: filterSeverity
+        }, 50),
+      ]);
+      setStats(statsData);
+      setRecent(recentData);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, filterCrime, filterSeverity]);
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [statsData, recentData] = await Promise.all([
-          api.getDashboardStats(),
-          api.getRecentComplaints(20),
-        ]);
-        setStats(statsData);
-        setRecent(recentData);
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+    loadData();
+  }, [loadData]);
 
   return (
     <div className="space-y-6">
@@ -122,8 +133,59 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* ── Day 87: Search + Filter Bar ── */}
+      <div className="bg-white border border-gray-200 rounded p-3 flex items-center gap-4 shadow-sm">
+        <div className="flex items-center gap-2 text-gray-500 font-medium text-sm border-r border-gray-200 pr-4">
+          <Filter size={16} /> Filters
+        </div>
+        
+        <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded px-3 py-1.5 focus-within:border-gov-blue transition-colors">
+          <Search size={16} className="text-gray-400" />
+          <input
+            type="text"
+            placeholder="Semantic search (e.g. 'OTP stolen from bank account')"
+            className="bg-transparent border-none outline-none text-sm w-full text-gray-800 placeholder-gray-400"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && loadData()}
+          />
+        </div>
+
+        <select 
+          className="text-sm border border-gray-200 bg-white rounded px-3 py-1.5 outline-none focus:border-gov-blue"
+          value={filterCrime}
+          onChange={(e) => setFilterCrime(e.target.value)}
+        >
+          <option value="All">All Crimes</option>
+          <option value="Financial Fraud">Financial Fraud</option>
+          <option value="Phishing">Phishing</option>
+          <option value="Ransomware">Ransomware</option>
+          <option value="Identity Theft">Identity Theft</option>
+          <option value="Cyberbullying">Cyberbullying</option>
+        </select>
+
+        <select 
+          className="text-sm border border-gray-200 bg-white rounded px-3 py-1.5 outline-none focus:border-gov-blue"
+          value={filterSeverity}
+          onChange={(e) => setFilterSeverity(e.target.value)}
+        >
+          <option value="All">All Severities</option>
+          <option value="Critical">Critical</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+
+        <button 
+          onClick={loadData}
+          className="bg-gov-primary hover:bg-red-800 text-white text-sm font-semibold px-4 py-1.5 rounded transition-colors"
+        >
+          Search
+        </button>
+      </div>
+
       {/* ── Day 82: Paginated Complaint Table ── */}
-      <Card title="All Complaints">
+      <Card title={`All Complaints ${recent.length ? `(${recent.length})` : ''}`}>
         <ComplaintTable
           complaints={recent}
           loading={loading}

@@ -36,6 +36,51 @@ interface SidePanel {
   connectedIds: string[];
 }
 
+// ── Mock data shown when Neo4j is offline / empty ──────────────────────────
+const MOCK_NODES: GraphNode[] = [
+  { id: "C-001", crime_type: "Phishing/Fraud",    severity: "High"     },
+  { id: "C-002", crime_type: "Ransomware/Hacking",severity: "Critical" },
+  { id: "C-003", crime_type: "UPI/OTP Scam",      severity: "High"     },
+  { id: "C-004", crime_type: "Phishing/Fraud",    severity: "Medium"   },
+  { id: "C-005", crime_type: "Identity Theft",    severity: "High"     },
+  { id: "C-006", crime_type: "Ransomware/Hacking",severity: "Critical" },
+  { id: "C-007", crime_type: "Cyberbullying",     severity: "Low"      },
+  { id: "C-008", crime_type: "UPI/OTP Scam",      severity: "Medium"   },
+  { id: "C-009", crime_type: "Phishing/Fraud",    severity: "High"     },
+  { id: "C-010", crime_type: "Identity Theft",    severity: "Critical" },
+  { id: "C-011", crime_type: "Ransomware/Hacking",severity: "High"     },
+  { id: "C-012", crime_type: "Financial Fraud",   severity: "High"     },
+  { id: "C-013", crime_type: "Financial Fraud",   severity: "Medium"   },
+  { id: "C-014", crime_type: "Cyberbullying",     severity: "Low"      },
+  { id: "C-015", crime_type: "UPI/OTP Scam",      severity: "High"     },
+  { id: "C-016", crime_type: "Phishing/Fraud",    severity: "Critical" },
+  { id: "C-017", crime_type: "Identity Theft",    severity: "Medium"   },
+  { id: "C-018", crime_type: "Ransomware/Hacking",severity: "High"     },
+  { id: "C-019", crime_type: "Financial Fraud",   severity: "Critical" },
+  { id: "C-020", crime_type: "UPI/OTP Scam",      severity: "Low"      },
+].map(n => ({ ...n, color: crimeColor(n.crime_type) }));
+
+const MOCK_LINKS: GraphLink[] = [
+  { source: "C-001", target: "C-004", entity_type: "shared_ip" },
+  { source: "C-001", target: "C-009", entity_type: "shared_ip" },
+  { source: "C-002", target: "C-006", entity_type: "shared_wallet" },
+  { source: "C-002", target: "C-011", entity_type: "shared_wallet" },
+  { source: "C-003", target: "C-008", entity_type: "shared_phone" },
+  { source: "C-003", target: "C-015", entity_type: "shared_phone" },
+  { source: "C-004", target: "C-016", entity_type: "shared_ip" },
+  { source: "C-005", target: "C-010", entity_type: "shared_email" },
+  { source: "C-005", target: "C-017", entity_type: "shared_email" },
+  { source: "C-006", target: "C-018", entity_type: "shared_wallet" },
+  { source: "C-012", target: "C-013", entity_type: "shared_account" },
+  { source: "C-012", target: "C-019", entity_type: "shared_account" },
+  { source: "C-007", target: "C-014", entity_type: "shared_device" },
+  { source: "C-008", target: "C-020", entity_type: "shared_phone" },
+  { source: "C-009", target: "C-016", entity_type: "shared_ip" },
+  { source: "C-010", target: "C-005", entity_type: "shared_email" },
+  { source: "C-011", target: "C-002", entity_type: "shared_wallet" },
+  { source: "C-015", target: "C-020", entity_type: "shared_phone" },
+];
+
 export default function FraudNetwork() {
   const graphRef = useRef<any>(null);
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
@@ -43,6 +88,7 @@ export default function FraudNetwork() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<SidePanel | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,12 +96,22 @@ export default function FraudNetwork() {
     try {
       const data = await api.getFraudNetwork();
       setRawData(data);
-      setGraphData({
-        nodes: data.nodes.map(n => ({ ...n, color: crimeColor(n.crime_type) })),
-        links: data.edges.map(e => ({ source: e.source, target: e.target, entity_type: e.entity_type })),
-      });
+      if (data.nodes.length === 0) {
+        // Neo4j empty — show demo data
+        setIsDemo(true);
+        setGraphData({ nodes: MOCK_NODES, links: MOCK_LINKS });
+      } else {
+        setIsDemo(false);
+        setGraphData({
+          nodes: data.nodes.map(n => ({ ...n, color: crimeColor(n.crime_type) })),
+          links: data.edges.map(e => ({ source: e.source, target: e.target, entity_type: e.entity_type })),
+        });
+      }
     } catch (e: any) {
-      setError(e.message);
+      // Backend offline — show demo data anyway
+      setIsDemo(true);
+      setError(null);
+      setGraphData({ nodes: MOCK_NODES, links: MOCK_LINKS });
     } finally {
       setLoading(false);
     }
@@ -106,7 +162,7 @@ export default function FraudNetwork() {
             <Network size={20} className="text-gov-primary" /> Fraud Network Graph
           </h1>
           <p className="text-sm text-gray-500">
-            {rawData ? `${rawData.node_count} nodes · ${rawData.edge_count} shared-entity edges` : "Loading..."}
+            {loading ? "Loading..." : `${graphData.nodes.length} nodes · ${graphData.links.length} shared-entity edges`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -141,20 +197,15 @@ export default function FraudNetwork() {
 
       {/* Graph canvas */}
       <div className="flex gap-4">
-        <div className="bg-white border border-gray-200 rounded shadow-sm overflow-hidden flex-1" style={{ height: 520 }}>
+        <div className="bg-white border border-gray-200 rounded shadow-sm overflow-hidden flex-1 relative" style={{ height: 520 }}>
           {loading && (
             <div className="h-full flex items-center justify-center text-gray-400 text-sm animate-pulse">
               Loading graph data...
             </div>
           )}
-          {error && (
-            <div className="h-full flex items-center justify-center text-gov-alert text-sm">
-              Failed to load: {error}
-            </div>
-          )}
-          {!loading && !error && graphData.nodes.length === 0 && (
-            <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-              No fraud network data in Neo4j yet.
+          {isDemo && !loading && (
+            <div className="absolute top-2 left-2 z-10 bg-amber-50 border border-amber-300 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm">
+              ⚠ Demo Mode — Neo4j offline. Showing sample network.
             </div>
           )}
           {!loading && !error && graphData.nodes.length > 0 && (

@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { api } from "../../services/api";
 import {
   LayoutDashboard,
   FileText,
@@ -17,6 +19,12 @@ const navItems = [
 ];
 
 export default function Sidebar() {
+  const [anomalyCount, setAnomalyCount] = useState(0);
+
+  useEffect(() => {
+    api.getAnomaliesCount().then(setAnomalyCount).catch(() => {});
+  }, []);
+
   return (
     <aside className="w-56 bg-gray-900 text-gray-100 flex flex-col min-h-screen flex-shrink-0">
       {/* Branding strip */}
@@ -42,7 +50,12 @@ export default function Sidebar() {
             }
           >
             <Icon size={16} />
-            {label}
+            <span className="flex-1">{label}</span>
+            {label === "Alerts" && anomalyCount > 0 && (
+              <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {anomalyCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

@@ -10,6 +10,7 @@ from backend.db.postgres import get_db
 from backend.models.complaint import Complaint
 from backend.services.ocr_service import OCRService
 from backend.services.pipeline_service import ProcessingPipeline
+from backend.services.cache_service import crag_cache
 
 # Initialize global pipeline instance
 pipeline = ProcessingPipeline()
@@ -145,6 +146,9 @@ async def submit_complaint(
             # Day 36: Trigger AI Processing in the background
             if background_tasks:
                 background_tasks.add_task(pipeline.process, new_complaint.id)
+
+            # Day 90: Invalidate any stale cache for this complaint (in case of resubmission)
+            crag_cache.invalidate(comp_uuid)
 
         except Exception as db_err:
             db.rollback()
