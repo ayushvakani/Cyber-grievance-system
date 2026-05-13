@@ -18,20 +18,20 @@ export default function Home() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
             </span>
-            Official Government Portal
+            Cyber Grievance Portal
           </div>
-          
+
           <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 tracking-tight mb-8 leading-[1.1]">
             National Cyber <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-gov-primary to-red-600">
               Grievance System
             </span>
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed font-light">
             A state-of-the-art platform for reporting, analyzing, and resolving cybercrimes with AI-powered intelligence and forensic precision.
           </p>
-          
+
           <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-medium border border-blue-100 shadow-sm">
               <Brain size={15} /> AI Triage & OCR
@@ -53,7 +53,7 @@ export default function Home() {
               <span>Victim Login / File Complaint</span>
               <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </Link>
-            
+
             <Link
               to="/admin/login"
               className="group flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold px-8 py-4 rounded-xl shadow-sm ring-1 ring-gray-200 transition-all hover:-translate-y-0.5 hover:shadow-md w-full sm:w-auto"
@@ -64,7 +64,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
+
       <footer className="relative z-10 bg-white border-t border-gray-100 py-8 text-center">
         <p className="text-sm text-gray-400 font-medium">
           © {new Date().getFullYear()} Cyber Grievance System. For demonstration purposes.

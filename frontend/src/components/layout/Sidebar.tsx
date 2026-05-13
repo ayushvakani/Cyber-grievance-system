@@ -11,6 +11,7 @@ import {
   LogOut,
   Home,
   Cpu,
+  BarChart3,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { to: "/admin/network", label: "Fraud Network", icon: Network },
   { to: "/admin/alerts", label: "Alerts", icon: ShieldAlert },
   { to: "/admin/pipeline", label: "AI Pipeline", icon: Cpu },
+  { to: "/admin/officer-report", label: "Officer Report", icon: BarChart3 },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

@@ -4,7 +4,7 @@ export default function GovHeader() {
     <header className="bg-gov-header text-white shadow-md">
       {/* Top stripe */}
       <div className="bg-gov-primary px-6 py-1 flex items-center justify-between text-xs">
-        <span className="font-medium tracking-wider">भारत सरकार • GOVERNMENT OF INDIA</span>
+        <span className="font-medium tracking-wider">Cyber Grievance Portal</span>
         <span className="opacity-80">Ministry of Home Affairs — Cyber Crime Division</span>
       </div>
 

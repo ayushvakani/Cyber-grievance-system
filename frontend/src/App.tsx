@@ -7,6 +7,7 @@ import ComplaintDetail from "./pages/ComplaintDetail";
 import FraudNetwork from "./pages/FraudNetwork";
 import AnomalyAlerts from "./pages/AnomalyAlerts";
 import Settings from "./pages/Settings";
+import OfficerReport from "./pages/OfficerReport";
 import PipelineDemo from "./pages/PipelineDemo";
 import Home from "./pages/Home";
 import ComplaintForm from "./pages/ComplaintForm";
@@ -40,6 +41,7 @@ function App() {
                   <Route path="network" element={<FraudNetwork />} />
                   <Route path="alerts" element={<AnomalyAlerts />} />
                   <Route path="pipeline" element={<PipelineDemo />} />
+                  <Route path="officer-report" element={<OfficerReport />} />
                   <Route path="settings" element={<Settings />} />
                 </Routes>
               </GovLayout>

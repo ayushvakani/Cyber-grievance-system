@@ -33,6 +33,41 @@ export interface ComplaintFilters {
   severity?: string;
 }
 
+export interface PendingItem {
+  complaint_id: string;
+  citizen_name: string;
+  crime_type: string;
+  severity: string;
+  reason: string;
+}
+
+export interface WeeklyBreakdown {
+  week_label: string;
+  solved: number;
+  processed: number;
+  pending: number;
+  total: number;
+  pending_items: PendingItem[];
+}
+
+export interface OfficerReportEntry {
+  officer_name: string;
+  crime_specialization: string[];
+  total_solved: number;
+  total_processed: number;
+  total_pending: number;
+  total_complaints: number;
+  weekly_breakdown: WeeklyBreakdown[];
+  all_pending_items: PendingItem[];
+}
+
+export interface OfficerReport {
+  weeks: number;
+  week_labels: string[];
+  officers: OfficerReportEntry[];
+  generated_at: string;
+}
+
 export const api = {
   getDashboardStats: async (): Promise<DashboardStats> => {
     const res = await fetch(`${BASE_URL}/api/dashboard/stats`);
@@ -86,4 +121,11 @@ export const api = {
     if (!res.ok) throw new Error("Failed to fetch insights");
     return res.json();
   },
+
+  getOfficerReport: async (weeks = 4): Promise<OfficerReport> => {
+    const res = await fetch(`${BASE_URL}/api/dashboard/officer-report?weeks=${weeks}`);
+    if (!res.ok) throw new Error("Failed to fetch officer report");
+    return res.json();
+  },
 };
+
