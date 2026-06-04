@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, User, Phone, MapPin, Calendar,
-  FileText, AlertTriangle, Shield, Brain, Download, X
+  ArrowLeft, User,
+  FileText, AlertTriangle, Brain, Download, X
 } from "lucide-react";
 import jsPDF from "jspdf";
 import Badge, { severityVariant, statusVariant } from "../components/ui/Badge";

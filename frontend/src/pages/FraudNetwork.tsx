@@ -84,24 +84,19 @@ const MOCK_LINKS: GraphLink[] = [
 export default function FraudNetwork() {
   const graphRef = useRef<any>(null);
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
-  const [rawData, setRawData] = useState<FraudNetworkData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<SidePanel | null>(null);
-  const [isDemo, setIsDemo] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await api.getFraudNetwork();
-      setRawData(data);
       if (data.nodes.length === 0) {
         // Neo4j empty — show demo data
-        setIsDemo(true);
         setGraphData({ nodes: MOCK_NODES, links: MOCK_LINKS });
       } else {
-        setIsDemo(false);
         setGraphData({
           nodes: data.nodes.map(n => ({ ...n, color: crimeColor(n.crime_type) })),
           links: data.edges.map(e => ({ source: e.source, target: e.target, entity_type: e.entity_type })),
@@ -109,7 +104,6 @@ export default function FraudNetwork() {
       }
     } catch (e: any) {
       // Backend offline — show demo data anyway
-      setIsDemo(true);
       setError(null);
       setGraphData({ nodes: MOCK_NODES, links: MOCK_LINKS });
     } finally {
