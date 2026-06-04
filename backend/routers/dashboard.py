@@ -113,7 +113,8 @@ def get_recent_complaints(
     """
     Day 87: Returns the most recent complaints, supporting semantic search and filters.
     """
-    db_query = db.query(Complaint)
+    # Only display complaints that have finished processing (exclude pending)
+    db_query = db.query(Complaint).filter(Complaint.status != "pending")
 
     # 1. Semantic Search via ChromaDB
     if query:

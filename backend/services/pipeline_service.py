@@ -8,7 +8,7 @@ from backend.models.entities import Entity
 from backend.services.llm_service import MistralService
 from backend.services.graph_service import Neo4jGraphService
 from backend.services.embedding_service import EmbeddingService
-
+from backend.services.ocr_service import OCRService
 logger = logging.getLogger(__name__)
 
 class ProcessingPipeline:
@@ -46,6 +46,26 @@ class ProcessingPipeline:
             if not complaint:
                 logger.error(f"[Pipeline] Complaint record {complaint_record_id} not found.")
                 return {"status": "error", "message": "Not found"}
+
+            # Perform OCR in the background if there's an image
+            if complaint.image_path:
+                try:
+                    ocr_service = OCRService()
+                    ocr_result = ocr_service.extract_text(complaint.image_path)
+                    
+                    if "error" in ocr_result:
+                        logger.warning(f"[Pipeline] OCR extraction error for {complaint.image_path}: {ocr_result['error']}")
+                    elif ocr_result.get("raw_text"):
+                        # Ensure we don't duplicate OCR text if processing is retried
+                        if "-- OCR EXTRACTED TEXT --" not in (complaint.raw_text or ""):
+                            merged_text = complaint.raw_text or ""
+                            if merged_text:
+                                merged_text += "\n-- OCR EXTRACTED TEXT --\n"
+                            merged_text += ocr_result["raw_text"]
+                            complaint.raw_text = merged_text
+                            db.commit()
+                except Exception as ocr_err:
+                    logger.error(f"[Pipeline] OCR processing failed: {ocr_err}")
 
             text = complaint.raw_text or complaint.complaint_text
             if not text:

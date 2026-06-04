@@ -107,23 +107,8 @@ async def submit_complaint(
                 print(f"[Ingestion Error] Failed to save uploaded file: {file_err}")
                 raise HTTPException(status_code=500, detail="Failed to save the uploaded image.")
 
-            # Perform OCR (Synchronous task run in a separate thread)
-            try:
-                ocr_service = OCRService()
-                # asyncio.to_thread is available in Python 3.9+
-                ocr_result = await asyncio.to_thread(ocr_service.extract_text, final_image_path)
-                
-                if "error" in ocr_result:
-                    print(f"[OCR Warning] OCR extraction returned error for {final_image_path}: {ocr_result['error']}")
-                    # If it's unreadable, maybe just proceed with empty OCR text, or throw 400. Let's log it.
-                elif ocr_result.get("raw_text"):
-                    # Merge OCR text with typed text
-                    if merged_raw_text:
-                        merged_raw_text += "\n-- OCR EXTRACTED TEXT --\n"
-                    merged_raw_text += ocr_result["raw_text"]
-            except Exception as ocr_err:
-                print(f"[Ingestion Error] OCR Service threw an exception: {ocr_err}")
-                raise HTTPException(status_code=500, detail="Error during OCR processing.")
+            # OCR extraction is now deferred to the background ProcessingPipeline
+            # to ensure the API responds instantly without blocking on CPU.
 
         # 3. Create Database Record (SQLAlchemy 1.x/2.0 sync style)
         try:
