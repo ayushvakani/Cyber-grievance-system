@@ -197,27 +197,49 @@ Response:
         
         for attempt in range(max_retries):
             try:
-                if not self._check_connection():
-                    raise ConnectionError("Ollama unreachable")
-
-                logger.info(f"[MistralService] Call attempt {attempt+1}/{max_retries}...")
-                response = requests.post(
-                    self.api_url, 
-                    json={
-                        "model": self.model, 
-                        "prompt": full_prompt, 
-                        "stream": False,
-                        "options": {
+                groq_key = os.getenv("GROQ_API_KEY")
+                if groq_key:
+                    logger.info(f"[MistralService] Call attempt {attempt+1}/{max_retries} using Groq API...")
+                    headers = {
+                        "Authorization": f"Bearer {groq_key}",
+                        "Content-Type": "application/json"
+                    }
+                    response = requests.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        json={
+                            "model": "llama3-8b-8192",
+                            "messages": [{"role": "user", "content": full_prompt}],
                             "temperature": 0.0,
-                            "num_predict": 200,  # Cap output tokens to stop it from rambling
-                            "num_ctx": 1024      # Smaller context window for much faster processing
-                        }
-                    }, 
-                    timeout=90
-                )
-                response.raise_for_status()
-                raw_text = response.json().get("response", "").strip()
-                return self._parse_response(raw_text)
+                            "max_tokens": 200
+                        },
+                        headers=headers,
+                        timeout=30
+                    )
+                    response.raise_for_status()
+                    raw_text = response.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    return self._parse_response(raw_text)
+                else:
+                    if not self._check_connection():
+                        raise ConnectionError("Ollama unreachable")
+
+                    logger.info(f"[MistralService] Call attempt {attempt+1}/{max_retries} using local Ollama...")
+                    response = requests.post(
+                        self.api_url, 
+                        json={
+                            "model": self.model, 
+                            "prompt": full_prompt, 
+                            "stream": False,
+                            "options": {
+                                "temperature": 0.0,
+                                "num_predict": 200,
+                                "num_ctx": 1024
+                            }
+                        }, 
+                        timeout=90
+                    )
+                    response.raise_for_status()
+                    raw_text = response.json().get("response", "").strip()
+                    return self._parse_response(raw_text)
 
             except Exception as e:
                 logger.warning(f"[MistralService] Attempt {attempt+1} failed: {e}")
