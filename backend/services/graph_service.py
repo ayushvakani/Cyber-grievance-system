@@ -6,25 +6,10 @@ logger = logging.getLogger(__name__)
 class Neo4jGraphService:
     def __init__(self):
         """
-        Initializes the Neo4jGraphService, tests the database connection, 
-        and creates necessary indexes for performance optimization.
+        Initializes the Neo4jGraphService. Connection testing is skipped 
+        on boot to prevent timeouts with free tier cloud databases.
         """
-        try:
-            with get_neo4j_session() as session:
-                result = session.run("RETURN 1 AS result")
-                record = result.single()
-                if record and record["result"] == 1:
-                    logger.info("Neo4jGraphService: Connection test successful.")
-                    
-                    # Day 58: Add Neo4j indexes for faster lookups
-                    session.run("CREATE INDEX complaint_id_idx IF NOT EXISTS FOR (c:Complaint) ON (c.complaint_id)")
-                    session.run("CREATE INDEX phone_number_idx IF NOT EXISTS FOR (p:PhoneNumber) ON (p.number)")
-                    session.run("CREATE INDEX upi_id_idx IF NOT EXISTS FOR (u:UpiId) ON (u.upi_id)")
-                    logger.info("Neo4jGraphService: Indexes verified/created successfully.")
-                else:
-                    logger.error("Neo4jGraphService: Connection test failed.")
-        except Exception as e:
-            logger.error(f"Neo4jGraphService: Error connecting to Neo4j - {str(e)}")
+        pass
 
     def _merge_entities(self, session, complaint_id: str, entities: list, node_label: str, property_name: str, rel_type: str):
         """Helper method to execute MERGE queries for different entity types."""
