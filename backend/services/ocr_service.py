@@ -1,4 +1,4 @@
-import easyocr
+
 import os
 import re
 from PIL import Image, ImageEnhance
@@ -14,6 +14,7 @@ class OCRService:
         self.langs = langs
         # In a real development environment, we should check if GPU is available
         # But per the requirement, we set gpu=True.
+        import easyocr
         self.reader = easyocr.Reader(self.langs, gpu=gpu)
 
     def is_image_clear(self, confidence: float) -> bool:

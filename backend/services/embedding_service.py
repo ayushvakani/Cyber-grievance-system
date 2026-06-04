@@ -7,14 +7,19 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     def __init__(self):
         """
-        Initializes the EmbeddingService by loading the SentenceTransformer model
-        (all-MiniLM-L6-v2) and ensuring the ChromaDB collection 'cyber_complaints' exists.
+        Initializes the EmbeddingService. Model is loaded lazily to save RAM on boot.
         """
-        logger.info("Loading SentenceTransformer model all-MiniLM-L6-v2...")
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.model = None
         self.chroma_client = get_chroma_client()
         self.collection = self.chroma_client.get_or_create_collection(name="cyber_complaints")
         logger.info("ChromaDB collection 'cyber_complaints' initialized.")
+
+    def _get_model(self):
+        if self.model is None:
+            logger.info("Loading SentenceTransformer model all-MiniLM-L6-v2...")
+            from sentence_transformers import SentenceTransformer
+            self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        return self.model
 
     def generate_embedding(self, text: str) -> list[float]:
         """
@@ -27,7 +32,8 @@ class EmbeddingService:
             list[float]: A list of floats representing the text embedding.
         """
         try:
-            embedding = self.model.encode(text)
+            model = self._get_model()
+            embedding = model.encode(text)
             return embedding.tolist()
         except Exception as e:
             logger.error(f"Error generating embedding: {str(e)}")
