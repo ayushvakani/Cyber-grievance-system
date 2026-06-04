@@ -8,10 +8,7 @@ app = FastAPI(title="Cyber Grievance System")
 import os
 
 # Configure CORS
-origins = ["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"]
-frontend_url = os.getenv("FRONTEND_URL")
-if frontend_url:
-    origins.append(frontend_url)
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
