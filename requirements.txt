@@ -13,3 +13,4 @@ pytesseract
 easyocr
 Pillow
 python-multipart
+aiofiles
