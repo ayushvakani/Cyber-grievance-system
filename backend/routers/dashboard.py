@@ -15,7 +15,14 @@ from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
-embedding_service = EmbeddingService()
+embedding_service = None
+
+def get_embedding_service():
+    global embedding_service
+    if embedding_service is None:
+        from backend.services.embedding_service import EmbeddingService
+        embedding_service = EmbeddingService()
+    return embedding_service
 
 # Mapping exact crime_type from DB to virtual officer name
 OFFICER_MAP: Dict[str, str] = {
@@ -120,7 +127,7 @@ def get_recent_complaints(
     if query:
         try:
             # Query the existing ChromaDB collection
-            results = embedding_service.collection.query(
+            results = get_embedding_service().collection.query(
                 query_texts=[query],
                 n_results=limit * 2 # fetch more to allow for SQL filtering
             )

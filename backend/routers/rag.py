@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Response
+from fastapi.responses import StreamingResponse
 from typing import Dict, Any
 from backend.services.crag_service import CorrectiveRAGService
 from backend.services.rag_service import GraphRAGService
@@ -10,8 +11,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/complaint", tags=["RAG Insights"])
-crag_service = CorrectiveRAGService()
-rag_service = GraphRAGService()
+crag_service = None
+rag_service = None
+
+def get_crag_service():
+    global crag_service
+    if crag_service is None:
+        crag_service = CorrectiveRAGService()
+    return crag_service
+
+def get_rag_service():
+    global rag_service
+    if rag_service is None:
+        rag_service = GraphRAGService()
+    return rag_service
 
 @router.get("/{complaint_id}/insights")
 def get_complaint_insights(complaint_id: str, response: Response):
@@ -40,15 +53,40 @@ def get_complaint_insights(complaint_id: str, response: Response):
         db.close()
 
     # Retrieve documents using GraphRAG (Neo4j + Chroma)
-    retrieved_docs = rag_service.retrieve(complaint_id, complaint_text, entities=[])
+    retrieved_docs = get_rag_service().retrieve(complaint_id, complaint_text, entities=[])
 
     # Process through Corrective RAG (CRAG)
-    result = crag_service.process(complaint_id, complaint_text, retrieved_docs)
+    result = get_crag_service().process(complaint_id, complaint_text, retrieved_docs)
 
     # ── Store in TTL cache ─────────────────────────────────────────────────
     crag_cache.set(complaint_id, result)
 
     return result
+
+@router.get("/{complaint_id}/insights/stream")
+def get_complaint_insights_stream(complaint_id: str):
+    """
+    Streaming version of CRAG insights.
+    """
+    db = SessionLocal()
+    try:
+        complaint = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+        if not complaint:
+            # Yield error event
+            return StreamingResponse(
+                iter(['{"type": "error", "content": "Complaint not found"}\n']),
+                media_type="text/event-stream"
+            )
+        complaint_text = complaint.raw_text or complaint.complaint_text or ""
+    finally:
+        db.close()
+
+    retrieved_docs = get_rag_service().retrieve(complaint_id, complaint_text, entities=[])
+
+    return StreamingResponse(
+        get_crag_service().process_stream(complaint_id, complaint_text, retrieved_docs),
+        media_type="text/event-stream"
+    )
 
 
 @router.delete("/{complaint_id}/insights/cache")

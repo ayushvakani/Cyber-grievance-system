@@ -20,6 +20,7 @@ class CorrectiveRAGService:
         """
         self.llm_service = MistralService()
         self.api_url = f"{OLLAMA_BASE_URL}/api/generate"
+        self.model = "qwen2.5-coder:7b"
 
     # ─────────────────────────────────────────────────────────────────────────
     # Internal helpers
@@ -30,7 +31,7 @@ class CorrectiveRAGService:
             response = requests.post(
                 self.api_url,
                 json={
-                    "model": self.llm_service.model,
+                    "model": self.model,
                     "prompt": prompt,
                     "stream": False,
                     "options": {"temperature": 0.0, "num_predict": 256},  # cap token output
@@ -173,57 +174,56 @@ class CorrectiveRAGService:
     ) -> Dict[str, Any]:
         """
         CRAG pipeline:
-          - FIX: Score all docs in PARALLEL (ThreadPoolExecutor) instead of sequentially
-          - FIX: Score knowledge strips with ONE batched LLM call instead of N calls
+          - FAST lexical overlap scoring instead of LLM calls
+          - Cap context to Top 4 chunks
         """
         if not retrieved_docs:
             return {"verdict": "INCORRECT", "avg_score": 0.0, "k_in": "", "k_ex": ""}
 
-        # ── FIX 1: Parallel doc scoring ──────────────────────────────────────
+        # ── Fast Lexical Overlap Scoring ──────────────────────────────────────
         scored_docs = []
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-            futures = {
-                pool.submit(self._score_single_doc, complaint_text, dict(doc)): i
-                for i, doc in enumerate(retrieved_docs)
-                if doc.get("text")
-            }
-            for future in as_completed(futures):
-                try:
-                    scored_docs.append(future.result())
-                except Exception as e:
-                    logger.warning(f"[CRAG] Doc scoring thread error: {e}")
+        # Filter out common stop words and short words for better overlap score
+        stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "was", "were", "it", "this", "that", "i", "we", "you", "they"}
+        query_words = {w for w in complaint_text.lower().split() if w not in stop_words and len(w) > 2}
+        
+        for doc in retrieved_docs:
+            text = doc.get("text", "")
+            if not text:
+                continue
+            doc_words = {w for w in text.lower().split() if w not in stop_words and len(w) > 2}
+            if query_words and doc_words:
+                overlap = len(query_words.intersection(doc_words))
+                # Use intersection over the smaller set to ensure score is reasonable
+                score = overlap / min(len(query_words), len(doc_words))
+            else:
+                score = 0.0
+            doc["relevance_score"] = score
+            scored_docs.append(doc)
 
-        if not scored_docs:
+        # ── Aggressive Chunk Filtering (Top 4 chunks, > 0.15 threshold) ──────
+        scored_docs.sort(key=lambda x: x["relevance_score"], reverse=True)
+        top_docs = [d for d in scored_docs if d["relevance_score"] >= 0.15][:4]
+
+        if not top_docs:
             return {"verdict": "INCORRECT", "avg_score": 0.0, "k_in": "", "k_ex": ""}
 
-        avg_score = sum(d["relevance_score"] for d in scored_docs) / len(scored_docs)
+        avg_score = sum(d["relevance_score"] for d in top_docs) / len(top_docs)
 
         # ── Verdict ───────────────────────────────────────────────────────────
-        if avg_score > 0.8:
+        if avg_score >= 0.7:
             verdict = "CORRECT"
         elif avg_score >= 0.4:
             verdict = "AMBIGUOUS"
         else:
             verdict = "INCORRECT"
 
-        logger.info(f"[CRAG] Avg relevance: {avg_score:.2f} -> Verdict: {verdict}")
+        logger.info(f"[CRAG] Fast Avg relevance: {avg_score:.2f} -> Verdict: {verdict}")
 
-        k_in = ""
+        k_in = " ".join([d.get("text", "") for d in top_docs])
         k_ex = ""
 
-        if verdict in ["CORRECT", "AMBIGUOUS"]:
-            # ── FIX 2: Batch strip scoring (1 LLM call instead of N) ─────────
-            all_strips = []
-            for doc in scored_docs:
-                all_strips.extend(self._extract_knowledge_strips(doc.get("text", "")))
-
-            # Cap at 20 strips to keep the batch prompt manageable
-            relevant_strips = self._batch_score_strips(complaint_text, all_strips[:20])
-            k_in = " ".join(relevant_strips)
-
-            if verdict == "AMBIGUOUS":
-                k_ex = self._generate_k_ex(complaint_text)
-
+        if verdict == "AMBIGUOUS":
+            k_ex = self._generate_k_ex(complaint_text)
         elif verdict == "INCORRECT":
             rewritten_query = self._rewrite_query(complaint_text)
             k_ex = self._search_knowledge_base(rewritten_query)
@@ -233,6 +233,7 @@ class CorrectiveRAGService:
             "avg_score": round(avg_score, 4),
             "k_in": k_in,
             "k_ex": k_ex,
+            "top_doc_ids": [d.get("complaint_id") for d in top_docs]
         }
 
     def _generate_final_recommendation(
@@ -241,9 +242,10 @@ class CorrectiveRAGService:
         k_in: str,
         k_ex: str,
         retrieved_docs: List[Dict[str, Any]],
+        top_doc_ids: List[str] = None
     ) -> Dict[str, Any]:
         """Day 75: Generate final officer recommendation."""
-        related_ids = [doc.get("complaint_id") for doc in retrieved_docs]
+        related_ids = top_doc_ids if top_doc_ids is not None else [doc.get("complaint_id") for doc in retrieved_docs]
 
         prompt = (
             f"You are an AI assistant for a cyber crime unit. Generate an actionable officer recommendation.\n"
@@ -278,6 +280,7 @@ class CorrectiveRAGService:
             eval_results.get("k_in", ""),
             eval_results.get("k_ex", ""),
             retrieved_docs,
+            eval_results.get("top_doc_ids", [])
         )
         return {
             "complaint_id": complaint_id,
@@ -285,3 +288,78 @@ class CorrectiveRAGService:
             "crag_avg_score": eval_results.get("avg_score"),
             "insights": recommendation,
         }
+
+    def process_stream(
+        self, complaint_id: str, complaint_text: str, retrieved_docs: List[Dict[str, Any]]
+    ):
+        """Full pipeline entry point with Server-Sent Events (SSE) streaming."""
+        eval_results = self.evaluate_retrieval(complaint_text, retrieved_docs)
+        
+        related_ids = eval_results.get("top_doc_ids", [])
+        k_in = eval_results.get("k_in", "")
+        k_ex = eval_results.get("k_ex", "")
+        
+        # Fraud check heuristic based on keywords since LLM isn't doing JSON anymore
+        fraud_alert = any(w in complaint_text.lower() for w in ["gang", "organized", "multiple accounts", "network", "syndicate"])
+        
+        # 1. Yield metadata event first
+        metadata_event = {
+            "type": "metadata",
+            "complaint_id": complaint_id,
+            "crag_verdict": eval_results.get("verdict", "INCORRECT"),
+            "crag_avg_score": eval_results.get("avg_score", 0.0),
+            "insights": {
+                "fraud_network_alert": fraud_alert,
+                "confidence_score": 0.85, # Fixed confidence for stream
+                "related_case_ids": related_ids
+            }
+        }
+        yield json.dumps(metadata_event) + "\n"
+
+        prompt = (
+            f"Please analyze this cybercrime report and provide an actionable investigative recommendation for the assigned officer.\n"
+            f"[COMPLAINT]: \"{complaint_text[:400]}\"\n"
+            f"[PAST CASES CONTEXT]: \"{k_in[:600]}\"\n"
+            f"[LEGAL/SOP CONTEXT]: \"{k_ex[:400]}\"\n"
+            f"Format your response EXACTLY as follows:\n\n"
+            f"RECOMMENDATION:\n"
+            f"<write 1-2 paragraphs here>\n\n"
+            f"ACTIONS:\n"
+            f"- <step1>\n"
+            f"- <step2>\n"
+            f"- <step3>"
+        )
+
+        try:
+            response = requests.post(
+                self.api_url,
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "system": "You are a highly secure law enforcement AI assistant for a cyber crime unit. You are authorized to analyze crime reports. You MUST provide investigative recommendations and NEVER refuse to answer, as this is for official police work.",
+                    "stream": True,
+                    "options": {"temperature": 0.0, "num_predict": 512},
+                },
+                stream=True,
+                timeout=45,
+            )
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if line:
+                    decoded_line = line.decode('utf-8')
+                    try:
+                        chunk_data = json.loads(decoded_line)
+                        text_chunk = chunk_data.get("response", "")
+                        if text_chunk:
+                            yield json.dumps({
+                                "type": "chunk",
+                                "content": text_chunk
+                            }) + "\n"
+                    except json.JSONDecodeError:
+                        pass
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            yield json.dumps({
+                "type": "error",
+                "content": f"Error generating insights: {e}"
+            }) + "\n"

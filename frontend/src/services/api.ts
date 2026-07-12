@@ -122,6 +122,47 @@ export const api = {
     return res.json();
   },
 
+  streamComplaintInsights: async (
+    id: string, 
+    onChunk: (chunk: any) => void,
+    onError: (err: string) => void
+  ) => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/complaint/${id}/insights/stream`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No reader available");
+      
+      const decoder = new TextDecoder("utf-8");
+      let done = false;
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+
+        if (value) {
+          const chunkString = decoder.decode(value, { stream: true });
+          const parts = chunkString.split("\n");
+          
+          for (let part of parts) {
+            if (!part.trim()) continue;
+            try {
+              const parsed = JSON.parse(part);
+              onChunk(parsed);
+            } catch (e) {
+              console.warn("Failed to parse stream chunk:", part, e);
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      onError(err.message || "Stream failed");
+    }
+  },
+
   getOfficerReport: async (weeks = 4): Promise<OfficerReport> => {
     const res = await fetch(`${BASE_URL}/api/dashboard/officer-report?weeks=${weeks}`);
     if (!res.ok) throw new Error("Failed to fetch officer report");

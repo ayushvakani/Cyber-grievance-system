@@ -1,5 +1,5 @@
 import logging
-from sentence_transformers import SentenceTransformer
+
 from backend.db.chroma_conn import get_chroma_client
 
 logger = logging.getLogger(__name__)
@@ -7,11 +7,10 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     def __init__(self):
         """
-        Initializes the EmbeddingService by loading the SentenceTransformer model
-        (all-MiniLM-L6-v2) and ensuring the ChromaDB collection 'cyber_complaints' exists.
+        Initializes the EmbeddingService but defers loading the SentenceTransformer model
+        until it is actually needed for generating an embedding.
         """
-        logger.info("Loading SentenceTransformer model all-MiniLM-L6-v2...")
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.model = None
         self.chroma_client = get_chroma_client()
         self.collection = self.chroma_client.get_or_create_collection(name="cyber_complaints")
         logger.info("ChromaDB collection 'cyber_complaints' initialized.")
@@ -27,10 +26,22 @@ class EmbeddingService:
             list[float]: A list of floats representing the text embedding.
         """
         try:
-            embedding = self.model.encode(text)
-            return embedding.tolist()
+            # Load model lazily
+            if self.model is None:
+                from sentence_transformers import SentenceTransformer
+                logger.info("Loading local SentenceTransformer model (nomic-ai/nomic-embed-text-v1.5)...")
+                # nomic-embed-text requires trust_remote_code=True in some environments
+                self.model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+                
+            # Generate embedding (it returns a numpy array, so we convert to float list)
+            embedding = self.model.encode(text).tolist()
+            
+            if not embedding:
+                raise ValueError("No embedding returned from SentenceTransformer")
+                
+            return embedding
         except Exception as e:
-            logger.error(f"Error generating embedding: {str(e)}")
+            logger.error(f"Error generating embedding via SentenceTransformer: {str(e)}")
             raise e
 
     def store_in_chromadb(self, complaint_id: str, text: str, embedding: list[float], metadata: dict):
