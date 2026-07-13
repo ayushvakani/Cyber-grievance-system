@@ -1,19 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Brain } from "lucide-react";
+import { ChevronLeft, ChevronRight, Brain, MessageSquare } from "lucide-react";
 import Badge, { severityVariant, statusVariant } from "./Badge";
 import { RecentComplaint } from "../../services/api";
+import ReplyModal from "./ReplyModal";
 
 interface ComplaintTableProps {
   complaints: RecentComplaint[];
   loading: boolean;
   onInsights: (id: string) => void;
+  onRefresh?: () => void;
 }
 
 const PAGE_SIZE = 10;
 
-export default function ComplaintTable({ complaints, loading, onInsights }: ComplaintTableProps) {
+export default function ComplaintTable({ complaints, loading, onInsights, onRefresh }: ComplaintTableProps) {
   const [page, setPage] = useState(0);
+  const [replyId, setReplyId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const safeComplaints = Array.isArray(complaints) ? complaints : [];
@@ -46,7 +49,7 @@ export default function ComplaintTable({ complaints, loading, onInsights }: Comp
               <th className="pb-2 pr-3 font-semibold">Severity</th>
               <th className="pb-2 pr-3 font-semibold">Status</th>
               <th className="pb-2 pr-3 font-semibold">Date</th>
-              <th className="pb-2 font-semibold">Insights</th>
+              <th className="pb-2 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -77,16 +80,28 @@ export default function ComplaintTable({ complaints, loading, onInsights }: Comp
                   {c.created_at ? new Date(c.created_at).toLocaleDateString("en-IN") : "—"}
                 </td>
                 <td className="py-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onInsights(c.complaint_id);
-                    }}
-                    className="flex items-center gap-1 text-xs font-semibold text-gov-blue bg-blue-50 hover:bg-gov-blue hover:text-white px-2.5 py-1.5 rounded border border-blue-200 hover:border-gov-blue transition-all duration-150"
-                  >
-                    <Brain size={12} />
-                    Insights
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onInsights(c.complaint_id);
+                      }}
+                      className="flex items-center gap-1 text-xs font-semibold text-gov-blue bg-blue-50 hover:bg-gov-blue hover:text-white px-2.5 py-1.5 rounded border border-blue-200 hover:border-gov-blue transition-all duration-150"
+                    >
+                      <Brain size={12} />
+                      Insights
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReplyId(c.complaint_id);
+                      }}
+                      className="flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-200 hover:text-gray-900 px-2.5 py-1.5 rounded border border-gray-200 transition-all duration-150"
+                    >
+                      <MessageSquare size={12} />
+                      Reply
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -120,6 +135,16 @@ export default function ComplaintTable({ complaints, loading, onInsights }: Comp
             </button>
           </div>
         </div>
+      )}
+      
+      {replyId && (
+        <ReplyModal 
+          complaintId={replyId} 
+          onClose={() => setReplyId(null)} 
+          onSuccess={() => {
+            if (onRefresh) onRefresh();
+          }} 
+        />
       )}
     </div>
   );

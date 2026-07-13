@@ -27,6 +27,7 @@ class Complaint(Base):
     confidence = Column(Float, nullable=True)
     summary = Column(Text, nullable=True)
     recommended_sections = Column(Text, nullable=True)
+    reply_text = Column(Text, nullable=True)
     status = Column(String, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

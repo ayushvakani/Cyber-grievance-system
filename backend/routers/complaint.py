@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, BackgroundTasks
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 import uuid
@@ -154,3 +155,37 @@ async def submit_complaint(
         # Catch any other unexpected errors
         print(f"[Ingestion Error] Unexpected error in submit_complaint: {str(e)}")
         raise HTTPException(status_code=500, detail="An unexpected internal server error occurred.")
+
+class ReplySendRequest(BaseModel):
+    reply_text: str
+
+@router.get("/api/complaint/{complaint_id}/reply/draft")
+def get_reply_draft(complaint_id: str, db: Session = Depends(get_db)):
+    """Generates and returns a reply draft for the given complaint."""
+    c = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+        
+    cached_draft = crag_cache.get(f"reply_draft_{complaint_id}")
+    if cached_draft:
+        return {"draft": cached_draft}
+        
+    from backend.services.llm_service import MistralService
+    llm = MistralService()
+    
+    draft = llm.generate_reply_draft(c.complaint_text or c.raw_text or "", c.citizen_name)
+    crag_cache.set(f"reply_draft_{complaint_id}", draft)
+    return {"draft": draft}
+
+@router.post("/api/complaint/{complaint_id}/reply/send")
+def send_reply(complaint_id: str, req: ReplySendRequest, db: Session = Depends(get_db)):
+    """Saves the edited reply and marks the complaint as responded."""
+    c = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+        
+    c.reply_text = req.reply_text
+    c.status = "processed" # Assuming processed is the responded state
+    db.commit()
+    
+    return {"status": "success", "message": "Reply sent successfully"}

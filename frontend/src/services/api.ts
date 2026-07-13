@@ -168,5 +168,21 @@ export const api = {
     if (!res.ok) throw new Error("Failed to fetch officer report");
     return res.json();
   },
+
+  getReplyDraft: async (id: string): Promise<{ draft: string }> => {
+    const res = await fetch(`${BASE_URL}/api/complaint/${id}/reply/draft`);
+    if (!res.ok) throw new Error("Failed to fetch reply draft");
+    return res.json();
+  },
+
+  sendReply: async (id: string, text: string): Promise<{ status: string, message: string }> => {
+    const res = await fetch(`${BASE_URL}/api/complaint/${id}/reply/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reply_text: text }),
+    });
+    if (!res.ok) throw new Error("Failed to send reply");
+    return res.json();
+  },
 };
 

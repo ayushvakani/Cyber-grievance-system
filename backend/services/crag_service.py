@@ -293,6 +293,17 @@ class CorrectiveRAGService:
         self, complaint_id: str, complaint_text: str, retrieved_docs: List[Dict[str, Any]]
     ):
         """Full pipeline entry point with Server-Sent Events (SSE) streaming."""
+        from backend.services.cache_service import crag_cache
+        
+        cached_raw_text = crag_cache.get(f"{complaint_id}_stream_raw")
+        cached_metadata = crag_cache.get(f"{complaint_id}_stream_meta")
+        
+        if cached_raw_text and cached_metadata:
+            yield json.dumps(cached_metadata) + "\n"
+            # Send the entire cached text as a single chunk to render instantly
+            yield json.dumps({"type": "chunk", "content": cached_raw_text}) + "\n"
+            return
+
         eval_results = self.evaluate_retrieval(complaint_text, retrieved_docs)
         
         related_ids = eval_results.get("top_doc_ids", [])
@@ -344,6 +355,7 @@ class CorrectiveRAGService:
                 timeout=45,
             )
             response.raise_for_status()
+            full_text = ""
             for line in response.iter_lines():
                 if line:
                     decoded_line = line.decode('utf-8')
@@ -351,12 +363,18 @@ class CorrectiveRAGService:
                         chunk_data = json.loads(decoded_line)
                         text_chunk = chunk_data.get("response", "")
                         if text_chunk:
+                            full_text += text_chunk
                             yield json.dumps({
                                 "type": "chunk",
                                 "content": text_chunk
                             }) + "\n"
                     except json.JSONDecodeError:
                         pass
+            
+            # Save the final text and metadata to cache for subsequent clicks
+            crag_cache.set(f"{complaint_id}_stream_raw", full_text)
+            crag_cache.set(f"{complaint_id}_stream_meta", metadata_event)
+            
         except Exception as e:
             logger.error(f"Streaming error: {e}")
             yield json.dumps({

@@ -183,49 +183,80 @@ Response:
     def analyze_complaint(self, complaint_text: str) -> dict:
         """
         Sends prompt to Mistral with a retry mechanism for stability.
+        Primary entry point. Calls Ollama, extracts JSON.
         """
-        error_fallback = {
-            "crime_type": "Other", "severity": "Low", "severity_reason": "Service failure.",
-            "confidence": 0.0, "entities": {}, "summary": "Failed.", "recommended_sections": []
-        }
+        if not complaint_text.strip():
+            logger.warning("[MistralService] Empty complaint text.")
+            return self._parse_response("")
 
-        if not complaint_text or not complaint_text.strip():
-            return error_fallback
+        # Optional: check connection first to avoid hanging if Ollama is dead
+        if not self._check_connection():
+            logger.warning("[MistralService] Connection check failed. Proceeding anyway (might timeout).")
 
-        full_prompt = self._build_prompt(complaint_text)
-        max_retries = 3
+        prompt = self._build_prompt(complaint_text)
         
-        for attempt in range(max_retries):
-            try:
-                if not self._check_connection():
-                    raise ConnectionError("Ollama unreachable")
+        try:
+            logger.info("[MistralService] Sending request to Ollama...")
+            response = requests.post(
+                self.api_url,
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.0,
+                        "num_predict": 512,  # Limit output to save time/memory
+                    }
+                },
+                timeout=45
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            raw_response = data.get("response", "")
+            logger.debug("[MistralService] Raw response: %s", raw_response)
+            
+            return self._parse_response(raw_response)
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[MistralService] API call failed: {e}")
+            return self._parse_response("")
+            
+    def generate_reply_draft(self, complaint_text: str, citizen_name: str) -> str:
+        """
+        Generate a professional email reply draft for the citizen.
+        """
+        prompt = f"""
+You are a professional cybercrime investigator.
+Write a brief, empathetic, and professional email reply to the citizen confirming receipt of their complaint.
+Do NOT use placeholders like [Your Name]. Just write the body of the email.
+Keep it under 3-4 sentences.
 
-                logger.info(f"[MistralService] Call attempt {attempt+1}/{max_retries}...")
-                response = requests.post(
-                    self.api_url, 
-                    json={
-                        "model": self.model, 
-                        "prompt": full_prompt, 
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.0,
-                            "num_predict": 200,  # Cap output tokens to stop it from rambling
-                            "num_ctx": 1024      # Smaller context window for much faster processing
-                        }
-                    }, 
-                    timeout=90
-                )
-                response.raise_for_status()
-                raw_text = response.json().get("response", "").strip()
-                return self._parse_response(raw_text)
+Citizen Name: {citizen_name}
+Complaint Context: "{complaint_text[:400]}"
 
-            except Exception as e:
-                logger.warning(f"[MistralService] Attempt {attempt+1} failed: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(5) # Wait for RAM to clear
-                else:
-                    logger.error("[MistralService] All retries failed.")
-                    return error_fallback
+Response:
+"""
+        try:
+            response = requests.post(
+                self.api_url,
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.3,
+                        "num_predict": 256,
+                    }
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("response", "").strip()
+        except Exception as e:
+            logger.error(f"[MistralService] Reply generation failed: {e}")
+            return f"Dear {citizen_name},\n\nWe have received your cybercrime complaint and are currently reviewing the details. An investigating officer will be assigned to your case shortly and will contact you if further information is required.\n\nRegards,\nCyber Crime Investigation Cell"
 
 
 if __name__ == "__main__":
