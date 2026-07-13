@@ -47,19 +47,27 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
             <Link
               to="/submit"
-              className="group relative flex items-center justify-center gap-2 bg-gov-primary hover:bg-red-800 text-white font-semibold px-8 py-4 rounded-xl shadow-lg shadow-red-900/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red-900/30 w-full sm:w-auto"
+              className="group relative flex items-center justify-center gap-2 bg-gov-primary hover:bg-red-800 text-white font-semibold px-6 py-4 rounded-xl shadow-lg shadow-red-900/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-red-900/30 w-full sm:w-auto"
             >
               <FileText size={20} />
-              <span>Victim Login / File Complaint</span>
+              <span>File Complaint</span>
               <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </Link>
 
             <Link
+              to="/status"
+              className="group flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold px-6 py-4 rounded-xl shadow-sm ring-1 ring-gray-200 transition-all hover:-translate-y-0.5 hover:shadow-md w-full sm:w-auto"
+            >
+              <Search size={20} className="text-gov-blue" />
+              <span>Check Status</span>
+            </Link>
+
+            <Link
               to="/admin/login"
-              className="group flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold px-8 py-4 rounded-xl shadow-sm ring-1 ring-gray-200 transition-all hover:-translate-y-0.5 hover:shadow-md w-full sm:w-auto"
+              className="group flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold px-6 py-4 rounded-xl shadow-sm ring-1 ring-gray-200 transition-all hover:-translate-y-0.5 hover:shadow-md w-full sm:w-auto"
             >
               <Shield size={20} className="text-gov-blue" />
-              <span>Admin Login (Dashboard)</span>
+              <span>Admin Login</span>
             </Link>
           </div>
         </div>

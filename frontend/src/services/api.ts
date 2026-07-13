@@ -171,15 +171,21 @@ export const api = {
 
   getReplyDraft: async (id: string): Promise<{ draft: string }> => {
     const res = await fetch(`${BASE_URL}/api/complaint/${id}/reply/draft`);
-    if (!res.ok) throw new Error("Failed to fetch reply draft");
+    if (!res.ok) throw new Error("Failed to get reply draft");
     return res.json();
   },
 
-  sendReply: async (id: string, text: string): Promise<{ status: string, message: string }> => {
+  getDecisionDraft: async (id: string): Promise<{ draft: string }> => {
+    const res = await fetch(`${BASE_URL}/api/complaint/${id}/decision/draft`);
+    if (!res.ok) throw new Error("Failed to get decision draft");
+    return res.json();
+  },
+
+  sendReply: async (id: string, reply_text: string): Promise<{ status: string }> => {
     const res = await fetch(`${BASE_URL}/api/complaint/${id}/reply/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reply_text: text }),
+      body: JSON.stringify({ reply_text: reply_text }),
     });
     if (!res.ok) throw new Error("Failed to send reply");
     return res.json();

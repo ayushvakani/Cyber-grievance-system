@@ -48,8 +48,25 @@ def get_complaint_detail(complaint_id: str, db: Session = Depends(get_db)):
         "confidence": c.confidence,
         "summary": c.summary,
         "recommended_sections": c.recommended_sections,
+        "reply_text": c.reply_text,
         "status": c.status,
         "created_at": c.created_at.isoformat() if c.created_at else None,
+    }
+
+@router.get("/api/complaint/{complaint_id}/public-status")
+def get_complaint_public_status(complaint_id: str, db: Session = Depends(get_db)):
+    """Returns limited complaint data for the citizen public portal."""
+    c = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+        
+    return {
+        "complaint_id": c.complaint_id,
+        "citizen_name": c.citizen_name,
+        "date_of_incident": c.date_of_incident,
+        "complaint_text": c.complaint_text or c.raw_text,
+        "reply_text": c.reply_text,
+        "status": c.status,
     }
 
 
@@ -82,7 +99,7 @@ async def submit_complaint(
         final_image_path = None
 
         # 2. Handle Image Upload & OCR
-        if complaint_image:
+        if complaint_image and complaint_image.filename:
             file_extension = os.path.splitext(complaint_image.filename)[1].lower()
             allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
             
@@ -175,6 +192,26 @@ def get_reply_draft(complaint_id: str, db: Session = Depends(get_db)):
     
     draft = llm.generate_reply_draft(c.complaint_text or c.raw_text or "", c.citizen_name)
     crag_cache.set(f"reply_draft_{complaint_id}", draft)
+    return {"draft": draft}
+
+@router.get("/api/complaint/{complaint_id}/decision/draft")
+def get_decision_draft(complaint_id: str, db: Session = Depends(get_db)):
+    """Generates and returns an officer decision draft for the given complaint."""
+    c = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+        
+    cached_draft = crag_cache.get(f"decision_draft_{complaint_id}")
+    if cached_draft:
+        return {"draft": cached_draft}
+        
+    llm = get_llm_service()
+    draft = llm.generate_decision_draft(
+        c.complaint_text or c.raw_text or "", 
+        c.crime_type or "Unknown", 
+        c.severity or "Medium"
+    )
+    crag_cache.set(f"decision_draft_{complaint_id}", draft)
     return {"draft": draft}
 
 @router.post("/api/complaint/{complaint_id}/reply/send")

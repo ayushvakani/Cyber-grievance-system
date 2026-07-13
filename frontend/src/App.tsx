@@ -11,6 +11,7 @@ import OfficerReport from "./pages/OfficerReport";
 import PipelineDemo from "./pages/PipelineDemo";
 import Home from "./pages/Home";
 import ComplaintForm from "./pages/ComplaintForm";
+import CheckStatus from "./pages/CheckStatus";
 import AdminLogin from "./pages/AdminLogin";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
@@ -23,6 +24,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
           <Route path="/submit" element={<PublicLayout><ComplaintForm /></PublicLayout>} />
+          <Route path="/status" element={<PublicLayout><CheckStatus /></PublicLayout>} />
           
           {/* Admin Login */}
           <Route path="/admin/login" element={<AdminLogin />} />

@@ -258,6 +258,43 @@ Response:
             logger.error(f"[MistralService] Reply generation failed: {e}")
             return f"Dear {citizen_name},\n\nWe have received your cybercrime complaint and are currently reviewing the details. An investigating officer will be assigned to your case shortly and will contact you if further information is required.\n\nRegards,\nCyber Crime Investigation Cell"
 
+    def generate_decision_draft(self, complaint_text: str, crime_type: str, severity: str) -> str:
+        """
+        Generate a professional draft for the officer's final decision/notes.
+        """
+        prompt = f"""
+You are a senior cybercrime investigation officer closing a case report.
+Write a brief, formal summary of the investigation's initial findings and recommended next steps based on the complaint text, crime type, and severity. 
+Keep it under 3-4 sentences. Use formal, objective police reporting language (e.g. "It is noted that...", "Subject reported...").
+Do NOT use placeholders.
+
+Crime Type: {crime_type}
+Severity: {severity}
+Complaint Context: "{complaint_text[:400]}"
+
+Draft Note:
+"""
+        try:
+            response = requests.post(
+                self.api_url,
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.3,
+                        "num_predict": 256,
+                    }
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("response", "").strip()
+        except Exception as e:
+            logger.error(f"[MistralService] Decision draft generation failed: {e}")
+            return f"Initial assessment completed for {crime_type} case (Severity: {severity}). The complainant's report has been recorded and will be assigned to a cyber forensics team for further tracking and investigation."
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

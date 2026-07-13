@@ -37,13 +37,13 @@ interface CardProps {
 
 export function Card({ children, title, className = "" }: CardProps) {
   return (
-    <div className={`bg-white rounded shadow-sm border border-gray-200 ${className}`}>
+    <div className={`bg-white rounded shadow-sm border border-gray-200 flex flex-col ${className}`}>
       {title && (
-        <div className="px-5 py-3 border-b border-gray-100 border-l-4 border-l-gov-primary">
+        <div className="px-5 py-3 border-b border-gray-100 border-l-4 border-l-gov-primary flex-shrink-0">
           <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">{title}</h2>
         </div>
       )}
-      <div className="p-5">{children}</div>
+      <div className="p-5 flex-grow flex flex-col">{children}</div>
     </div>
   );
 }
