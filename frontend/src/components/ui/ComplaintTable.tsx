@@ -48,6 +48,7 @@ export default function ComplaintTable({ complaints, loading, onInsights, onRefr
               <th className="pb-2 pr-3 font-semibold">Crime Type</th>
               <th className="pb-2 pr-3 font-semibold">Severity</th>
               <th className="pb-2 pr-3 font-semibold">Status</th>
+              <th className="pb-2 pr-3 font-semibold">Reply</th>
               <th className="pb-2 pr-3 font-semibold">Date</th>
               <th className="pb-2 font-semibold">Actions</th>
             </tr>
@@ -75,6 +76,18 @@ export default function ComplaintTable({ complaints, loading, onInsights, onRefr
                   {c.status ? (
                     <Badge label={c.status} variant={statusVariant(c.status)} />
                   ) : <span className="text-gray-300">—</span>}
+                </td>
+                <td className="py-3 pr-3">
+                  {c.reply_text ? (
+                    <div 
+                      className="text-xs text-gray-700 max-w-[150px] truncate border-l-2 border-green-500 pl-2 bg-green-50/50 py-1"
+                      title={c.reply_text}
+                    >
+                      {c.reply_text}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-red-500/80 bg-red-50 px-2 py-0.5 rounded border border-red-100">Not sent</span>
+                  )}
                 </td>
                 <td className="py-3 pr-3 text-xs text-gray-500">
                   {c.created_at ? new Date(c.created_at).toLocaleDateString("en-IN") : "—"}

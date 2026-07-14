@@ -17,6 +17,7 @@ export interface RecentComplaint {
   severity: string;
   status: string;
   summary: string;
+  reply_text?: string;
   created_at: string;
 }
 

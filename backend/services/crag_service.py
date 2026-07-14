@@ -3,6 +3,7 @@ import logging
 import requests
 import re
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any
 from backend.services.llm_service import MistralService, OLLAMA_BASE_URL
@@ -170,7 +171,7 @@ class CorrectiveRAGService:
     # ─────────────────────────────────────────────────────────────────────────
 
     def evaluate_retrieval(
-        self, complaint_text: str, retrieved_docs: List[Dict[str, Any]]
+        self, complaint_text: str, retrieved_docs: List[Dict[str, Any]], generate_k_ex_flag: bool = True
     ) -> Dict[str, Any]:
         """
         CRAG pipeline:
@@ -222,11 +223,12 @@ class CorrectiveRAGService:
         k_in = " ".join([d.get("text", "") for d in top_docs])
         k_ex = ""
 
-        if verdict == "AMBIGUOUS":
-            k_ex = self._generate_k_ex(complaint_text)
-        elif verdict == "INCORRECT":
-            rewritten_query = self._rewrite_query(complaint_text)
-            k_ex = self._search_knowledge_base(rewritten_query)
+        if generate_k_ex_flag:
+            if verdict == "AMBIGUOUS":
+                k_ex = self._generate_k_ex(complaint_text)
+            elif verdict == "INCORRECT":
+                rewritten_query = self._rewrite_query(complaint_text)
+                k_ex = self._search_knowledge_base(rewritten_query)
 
         return {
             "verdict": verdict,
@@ -304,20 +306,20 @@ class CorrectiveRAGService:
             yield json.dumps({"type": "chunk", "content": cached_raw_text}) + "\n"
             return
 
-        eval_results = self.evaluate_retrieval(complaint_text, retrieved_docs)
+        eval_results = self.evaluate_retrieval(complaint_text, retrieved_docs, generate_k_ex_flag=False)
         
         related_ids = eval_results.get("top_doc_ids", [])
         k_in = eval_results.get("k_in", "")
-        k_ex = eval_results.get("k_ex", "")
+        verdict = eval_results.get("verdict", "INCORRECT")
         
         # Fraud check heuristic based on keywords since LLM isn't doing JSON anymore
         fraud_alert = any(w in complaint_text.lower() for w in ["gang", "organized", "multiple accounts", "network", "syndicate"])
         
-        # 1. Yield metadata event first
+        # 1. Yield metadata event first (Instant)
         metadata_event = {
             "type": "metadata",
             "complaint_id": complaint_id,
-            "crag_verdict": eval_results.get("verdict", "INCORRECT"),
+            "crag_verdict": verdict,
             "crag_avg_score": eval_results.get("avg_score", 0.0),
             "insights": {
                 "fraud_network_alert": fraud_alert,
@@ -326,6 +328,14 @@ class CorrectiveRAGService:
             }
         }
         yield json.dumps(metadata_event) + "\n"
+
+        # 2. Generate k_ex now that the UI has moved to Step 2
+        k_ex = ""
+        if verdict == "AMBIGUOUS":
+            k_ex = self._generate_k_ex(complaint_text)
+        elif verdict == "INCORRECT":
+            rewritten_query = self._rewrite_query(complaint_text)
+            k_ex = self._search_knowledge_base(rewritten_query)
 
         prompt = (
             f"Please analyze this cybercrime report and provide an actionable investigative recommendation for the assigned officer.\n"
@@ -355,6 +365,7 @@ class CorrectiveRAGService:
                 timeout=45,
             )
             response.raise_for_status()
+            
             full_text = ""
             for line in response.iter_lines():
                 if line:

@@ -222,7 +222,7 @@ def send_reply(complaint_id: str, req: ReplySendRequest, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Complaint not found")
         
     c.reply_text = req.reply_text
-    c.status = "processed" # Assuming processed is the responded state
+    c.status = "resolved"
     db.commit()
     
     return {"status": "success", "message": "Reply sent successfully"}

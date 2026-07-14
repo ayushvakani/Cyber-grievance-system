@@ -68,6 +68,17 @@ def get_complaint_insights_stream(complaint_id: str):
     """
     Streaming version of CRAG insights.
     """
+    # ── Quick Cache Check (Bypass DB and RAG entirely) ──
+    cached_raw = crag_cache.get(f"{complaint_id}_stream_raw")
+    cached_meta = crag_cache.get(f"{complaint_id}_stream_meta")
+    
+    if cached_raw and cached_meta:
+        def stream_cache():
+            import json
+            yield json.dumps(cached_meta) + "\n"
+            yield json.dumps({"type": "chunk", "content": cached_raw}) + "\n"
+        return StreamingResponse(stream_cache(), media_type="text/event-stream")
+
     db = SessionLocal()
     try:
         complaint = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()

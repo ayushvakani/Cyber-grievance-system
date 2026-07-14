@@ -162,6 +162,7 @@ def get_recent_complaints(
             "severity": c.severity,
             "status": c.status,
             "summary": c.summary,
+            "reply_text": c.reply_text,
             "created_at": c.created_at.isoformat() if c.created_at else None,
         }
         for c in complaints
