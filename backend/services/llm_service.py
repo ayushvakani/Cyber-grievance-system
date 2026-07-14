@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MODEL_NAME = os.getenv("MODEL_NAME", "mistral")
-
+FAST_MODEL_NAME = os.getenv("FAST_MODEL_NAME", "llama3.2:3b")
 
 class MistralService:
     """
@@ -21,9 +21,10 @@ class MistralService:
     running locally via Ollama.
     """
 
-    def __init__(self, base_url: str = OLLAMA_BASE_URL, model: str = MODEL_NAME):
+    def __init__(self, base_url: str = OLLAMA_BASE_URL, model: str = MODEL_NAME, fast_model: str = FAST_MODEL_NAME):
         self.base_url = base_url
         self.model = model
+        self.fast_model = fast_model
         self.api_url = f"{self.base_url}/api/generate"
 
     def _check_connection(self) -> bool:
@@ -226,8 +227,8 @@ Response:
         """
         Generate a professional email reply draft for the citizen.
         """
+        system_prompt = "You are a professional cybercrime investigator writing emails to citizens."
         prompt = f"""
-You are a professional cybercrime investigator.
 Write a brief, empathetic, and professional email reply to the citizen confirming receipt of their complaint.
 Do NOT use placeholders like [Your Name]. Just write the body of the email.
 Keep it under 3-4 sentences.
@@ -235,21 +236,21 @@ Keep it under 3-4 sentences.
 Citizen Name: {citizen_name}
 Complaint Context: "{complaint_text[:400]}"
 
-Response:
-"""
+Email Body:"""
         try:
             response = requests.post(
                 self.api_url,
                 json={
-                    "model": self.model,
+                    "model": self.fast_model,
                     "prompt": prompt,
+                    "system": system_prompt,
                     "stream": False,
                     "options": {
-                        "temperature": 0.3,
-                        "num_predict": 256,
+                        "temperature": 0.4,
+                        "num_predict": 1024,
                     }
                 },
-                timeout=30
+                timeout=60
             )
             response.raise_for_status()
             data = response.json()
@@ -278,15 +279,15 @@ Draft Note:
             response = requests.post(
                 self.api_url,
                 json={
-                    "model": self.model,
+                    "model": self.fast_model,
                     "prompt": prompt,
                     "stream": False,
                     "options": {
                         "temperature": 0.3,
-                        "num_predict": 256,
+                        "num_predict": 1024,
                     }
                 },
-                timeout=30
+                timeout=60
             )
             response.raise_for_status()
             data = response.json()

@@ -73,31 +73,75 @@ def get_complaint_insights_stream(complaint_id: str):
     cached_meta = crag_cache.get(f"{complaint_id}_stream_meta")
     
     if cached_raw and cached_meta:
-        def stream_cache():
+        async def stream_cache():
             import json
+            import asyncio
             yield json.dumps(cached_meta) + "\n"
-            yield json.dumps({"type": "chunk", "content": cached_raw}) + "\n"
+            words = cached_raw.split(" ")
+            for i, word in enumerate(words):
+                content = word + (" " if i < len(words) - 1 else "")
+                yield json.dumps({"type": "chunk", "content": content}) + "\n"
+                await asyncio.sleep(0.05)
         return StreamingResponse(stream_cache(), media_type="text/event-stream")
 
     db = SessionLocal()
     try:
         complaint = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
         if not complaint:
-            # Yield error event
             return StreamingResponse(
                 iter(['{"type": "error", "content": "Complaint not found"}\n']),
                 media_type="text/event-stream"
             )
+        
+        # ── Persistent DB Check ──
+        if complaint.crag_raw_text and complaint.crag_metadata:
+            import json
+            import asyncio
+            cached_meta = json.loads(complaint.crag_metadata)
+            cached_raw = complaint.crag_raw_text
+            async def stream_db_cache():
+                yield json.dumps(cached_meta) + "\n"
+                words = cached_raw.split(" ")
+                for i, word in enumerate(words):
+                    content = word + (" " if i < len(words) - 1 else "")
+                    yield json.dumps({"type": "chunk", "content": content}) + "\n"
+                    await asyncio.sleep(0.05)
+            return StreamingResponse(stream_db_cache(), media_type="text/event-stream")
+
         complaint_text = complaint.raw_text or complaint.complaint_text or ""
     finally:
         db.close()
 
     retrieved_docs = get_rag_service().retrieve(complaint_id, complaint_text, entities=[])
 
-    return StreamingResponse(
-        get_crag_service().process_stream(complaint_id, complaint_text, retrieved_docs),
-        media_type="text/event-stream"
-    )
+    def streaming_wrapper():
+        db_wrapper = SessionLocal()
+        try:
+            full_text = ""
+            metadata = None
+            import json
+            for chunk in get_crag_service().process_stream(complaint_id, complaint_text, retrieved_docs):
+                try:
+                    data = json.loads(chunk.strip())
+                    if data.get("type") == "metadata":
+                        metadata = data
+                    elif data.get("type") == "chunk":
+                        full_text += data.get("content", "")
+                except Exception:
+                    pass
+                yield chunk
+            
+            # Save to DB permanently after streaming is complete
+            if metadata and full_text:
+                comp = db_wrapper.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
+                if comp:
+                    comp.crag_raw_text = full_text
+                    comp.crag_metadata = json.dumps(metadata)
+                    db_wrapper.commit()
+        finally:
+            db_wrapper.close()
+
+    return StreamingResponse(streaming_wrapper(), media_type="text/event-stream")
 
 
 @router.delete("/{complaint_id}/insights/cache")

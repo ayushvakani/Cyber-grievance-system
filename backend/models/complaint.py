@@ -29,5 +29,7 @@ class Complaint(Base):
     recommended_sections = Column(Text, nullable=True)
     reply_text = Column(Text, nullable=True)
     status = Column(String, default="pending")
+    crag_raw_text = Column(Text, nullable=True)
+    crag_metadata = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

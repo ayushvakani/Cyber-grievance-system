@@ -293,6 +293,58 @@ def get_officer_report(
         # Only include officers who have at least one complaint
         report = [r for r in report if r["total_complaints"] > 0]
 
+        import random
+        # ── INJECT DUMMY DATA FOR OFFICER REPORT ONLY ──
+        dummy_officers = [
+            ("Insp. Rahul Sharma", ["Phishing/Fraud"]),
+            ("Insp. Priya Mehta", ["UPI/OTP Scam"]),
+            ("Insp. Vikram Singh", ["Ransomware/Hacking"]),
+            ("Insp. Rajesh Kumar", ["Identity Theft"]),
+            ("Insp. Amit Verma", ["Cyberbullying"]),
+            ("Insp. Sunita Patel", ["Financial Fraud"])
+        ]
+        
+        existing_officers = {r["officer_name"] for r in report}
+        
+        for d_name, d_crimes in dummy_officers:
+            if d_name in existing_officers:
+                continue
+                
+            d_breakdown = []
+            d_solved = 0
+            d_processed = 0
+            d_pending = 0
+            
+            for (label, _, _) in week_buckets:
+                # Randomize realistic stats
+                w_solved = random.randint(0, 5)
+                w_processed = random.randint(0, 3)
+                w_pending = random.randint(0, 2)
+                
+                d_breakdown.append({
+                    "week_label": label,
+                    "solved": w_solved,
+                    "processed": w_processed,
+                    "pending": w_pending,
+                    "pending_items": [],
+                    "total": w_solved + w_processed + w_pending
+                })
+                d_solved += w_solved
+                d_processed += w_processed
+                d_pending += w_pending
+                
+            report.append({
+                "officer_name": d_name,
+                "crime_specialization": d_crimes,
+                "total_solved": d_solved,
+                "total_processed": d_processed,
+                "total_pending": d_pending,
+                "total_complaints": d_solved + d_processed + d_pending,
+                "weekly_breakdown": d_breakdown,
+                "all_pending_items": [],
+            })
+        # ───────────────────────────────────────────────
+
         return {
             "weeks": weeks,
             "week_labels": [label for (label, _, _) in week_buckets],

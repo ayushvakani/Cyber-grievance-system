@@ -329,13 +329,11 @@ class CorrectiveRAGService:
         }
         yield json.dumps(metadata_event) + "\n"
 
-        # 2. Generate k_ex now that the UI has moved to Step 2
+        # 2. Stream starts IMMEDIATELY without background LLM calls
         k_ex = ""
-        if verdict == "AMBIGUOUS":
-            k_ex = self._generate_k_ex(complaint_text)
-        elif verdict == "INCORRECT":
-            rewritten_query = self._rewrite_query(complaint_text)
-            k_ex = self._search_knowledge_base(rewritten_query)
+        if verdict == "INCORRECT":
+            # Just do a fast local search using original query instead of calling LLM to rewrite
+            k_ex = self._search_knowledge_base(complaint_text)
 
         prompt = (
             f"Please analyze this cybercrime report and provide an actionable investigative recommendation for the assigned officer.\n"
