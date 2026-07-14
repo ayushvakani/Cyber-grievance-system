@@ -61,41 +61,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ── Stat Cards (Day 80) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Complaints"
-          value={stats?.total_complaints ?? 0}
-          icon={FileText}
-          loading={loading}
-          iconColor="text-gov-primary"
-        />
-        <StatCard
-          title="High Severity"
-          value={stats?.high_severity ?? 0}
-          icon={ShieldAlert}
-          loading={loading}
-          iconColor="text-gov-alert"
-        />
-        <StatCard
-          title="Resolved"
-          value={stats?.resolved ?? 0}
-          icon={CheckCircle}
-          loading={loading}
-          iconColor="text-gov-success"
-        />
-        <StatCard
-          title="Fraud Network Risk"
-          value={
-            stats
-              ? `${Math.round((stats.high_severity / Math.max(stats.total_complaints, 1)) * 100)}%`
-              : "—"
-          }
-          icon={Network}
-          loading={loading}
-          iconColor="text-gov-blue"
-        />
-      </div>
+
 
       {/* ── Day 81: Bar Chart + Crime Distribution row ── */}
       <div className="grid grid-cols-3 gap-4">
