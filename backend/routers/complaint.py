@@ -205,7 +205,8 @@ def get_decision_draft(complaint_id: str, db: Session = Depends(get_db)):
     if cached_draft:
         return {"draft": cached_draft}
         
-    llm = get_llm_service()
+    from backend.services.llm_service import MistralService
+    llm = MistralService()
     draft = llm.generate_decision_draft(
         c.complaint_text or c.raw_text or "", 
         c.crime_type or "Unknown", 

@@ -1,3 +1,5 @@
+import { Shield } from "lucide-react";
+
 // Government of India Official Header
 export default function GovHeader() {
   return (
@@ -10,11 +12,9 @@ export default function GovHeader() {
 
       {/* Main header bar */}
       <div className="px-6 py-3 flex items-center gap-4">
-        {/* Seal placeholder */}
-        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-          <div className="w-10 h-10 rounded-full border-2 border-gov-primary flex items-center justify-center">
-            <span className="text-gov-primary font-bold text-xs">🔵</span>
-          </div>
+        {/* Seal Icon */}
+        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm border-2 border-gray-100">
+          <Shield size={24} className="text-gov-primary fill-gov-primary/10" />
         </div>
 
         <div>

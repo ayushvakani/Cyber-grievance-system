@@ -48,6 +48,37 @@ def get_complaint_insights(complaint_id: str, response: Response):
         complaint = db.query(Complaint).filter(Complaint.complaint_id == complaint_id).first()
         if not complaint:
             return {"error": "Complaint not found"}
+            
+        # Fast path: Check if streamed result is already in DB
+        if complaint.crag_raw_text and complaint.crag_metadata:
+            import json
+            try:
+                meta = json.loads(complaint.crag_metadata)
+                
+                # Extract actions from raw text
+                actions = []
+                raw_text = complaint.crag_raw_text
+                if "ACTIONS:" in raw_text:
+                    actions_text = raw_text.split("ACTIONS:")[1]
+                    actions = [line.strip("- ").strip() for line in actions_text.split("\n") if line.strip("- ").strip()]
+                
+                result = {
+                    "complaint_id": complaint_id,
+                    "crag_verdict": meta.get("crag_verdict"),
+                    "crag_avg_score": meta.get("crag_avg_score"),
+                    "insights": {
+                        "officer_recommendation": raw_text.split("ACTIONS:")[0].replace("RECOMMENDATION:", "").strip(),
+                        "suggested_actions": actions,
+                        "fraud_network_alert": meta.get("insights", {}).get("fraud_network_alert", False),
+                        "confidence_score": meta.get("insights", {}).get("confidence_score", 0.0),
+                        "related_case_ids": meta.get("insights", {}).get("related_case_ids", [])
+                    }
+                }
+                crag_cache.set(complaint_id, result)
+                return result
+            except Exception as e:
+                logger.warning(f"Failed to parse DB stream cache: {e}")
+
         complaint_text = complaint.raw_text or complaint.complaint_text or ""
     finally:
         db.close()

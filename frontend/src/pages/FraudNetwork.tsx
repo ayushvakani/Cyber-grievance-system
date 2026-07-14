@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import ForceGraph2D from "react-force-graph-2d";
 import { Network, ZoomIn, ZoomOut, RefreshCw, X, AlertTriangle, ShieldCheck, Clock, FileText, BarChart3, PieChart as PieChartIcon, Activity, Users, Target, ShieldAlert, CheckCircle } from "lucide-react";
 import Badge, { severityVariant } from "../components/ui/Badge";
 import { StatCard } from "../components/ui/Card";
@@ -48,37 +47,56 @@ interface SidePanel {
   connectedIds: string[];
 }
 
-// ── RICH DEMO DATA (In-memory only) ──────────────────────────
+// ── RICH DEMO DATA (In-memory only) ───────
+// Clean, Structured Mock Network for perfect interpretability
 const MOCK_NODES: GraphNode[] = [
+  // Cluster 1: Phishing Ring (Shared IP)
   { id: "C-001", crime_type: "Phishing/Fraud",    severity: "High"     },
-  { id: "C-002", crime_type: "Ransomware/Hacking",severity: "Critical" },
-  { id: "C-003", crime_type: "UPI/OTP Scam",      severity: "High"     },
   { id: "C-004", crime_type: "Phishing/Fraud",    severity: "Medium"   },
-  { id: "C-005", crime_type: "Identity Theft",    severity: "High"     },
-  { id: "C-006", crime_type: "Ransomware/Hacking",severity: "Critical" },
-  { id: "C-007", crime_type: "Cyberbullying",     severity: "Low"      },
-  { id: "C-008", crime_type: "UPI/OTP Scam",      severity: "Medium"   },
   { id: "C-009", crime_type: "Phishing/Fraud",    severity: "High"     },
-  { id: "C-010", crime_type: "Identity Theft",    severity: "Critical" },
-  { id: "C-011", crime_type: "Financial Fraud",   severity: "Medium"   },
   { id: "C-012", crime_type: "Phishing/Fraud",    severity: "High"     },
+  { id: "IP-192", crime_type: "Other",            severity: "Low"      },
+
+  // Cluster 2: Ransomware Gang (Shared Wallet)
+  { id: "C-002", crime_type: "Ransomware/Hacking",severity: "Critical" },
+  { id: "C-006", crime_type: "Ransomware/Hacking",severity: "Critical" },
   { id: "C-013", crime_type: "Ransomware/Hacking",severity: "Critical" },
+  { id: "BTC-W1", crime_type: "Other",            severity: "High"     },
+
+  // Cluster 3: UPI Scammers (Shared Phone)
+  { id: "C-003", crime_type: "UPI/OTP Scam",      severity: "High"     },
+  { id: "C-008", crime_type: "UPI/OTP Scam",      severity: "Medium"   },
   { id: "C-014", crime_type: "UPI/OTP Scam",      severity: "High"     },
+  { id: "PH-987", crime_type: "Other",            severity: "Medium"   },
+
+  // Cluster 4: Identity Theft (Shared Email)
+  { id: "C-005", crime_type: "Identity Theft",    severity: "High"     },
+  { id: "C-010", crime_type: "Identity Theft",    severity: "Critical" },
   { id: "C-015", crime_type: "Identity Theft",    severity: "Medium"   },
+  { id: "EM-Spoof", crime_type: "Other",          severity: "Low"      },
 ].map(n => ({ ...n, color: crimeColor(n.crime_type) }));
 
 const MOCK_LINKS: GraphLink[] = [
-  { source: "C-001", target: "C-004", entity_type: "shared_ip" },
-  { source: "C-001", target: "C-009", entity_type: "shared_ip" },
-  { source: "C-001", target: "C-012", entity_type: "shared_ip" },
-  { source: "C-002", target: "C-006", entity_type: "shared_wallet" },
-  { source: "C-002", target: "C-013", entity_type: "shared_wallet" },
-  { source: "C-003", target: "C-008", entity_type: "shared_phone" },
-  { source: "C-003", target: "C-014", entity_type: "shared_phone" },
-  { source: "C-005", target: "C-010", entity_type: "shared_email" },
-  { source: "C-005", target: "C-015", entity_type: "shared_email" },
-  { source: "C-004", target: "C-012", entity_type: "shared_ip" },
-  { source: "C-006", target: "C-013", entity_type: "shared_wallet" },
+  // Cluster 1
+  { source: "C-001", target: "IP-192", entity_type: "shared_ip" },
+  { source: "C-004", target: "IP-192", entity_type: "shared_ip" },
+  { source: "C-009", target: "IP-192", entity_type: "shared_ip" },
+  { source: "C-012", target: "IP-192", entity_type: "shared_ip" },
+  // Cluster 2
+  { source: "C-002", target: "BTC-W1", entity_type: "shared_wallet" },
+  { source: "C-006", target: "BTC-W1", entity_type: "shared_wallet" },
+  { source: "C-013", target: "BTC-W1", entity_type: "shared_wallet" },
+  // Cluster 3
+  { source: "C-003", target: "PH-987", entity_type: "shared_phone" },
+  { source: "C-008", target: "PH-987", entity_type: "shared_phone" },
+  { source: "C-014", target: "PH-987", entity_type: "shared_phone" },
+  // Cluster 4
+  { source: "C-005", target: "EM-Spoof", entity_type: "shared_email" },
+  { source: "C-010", target: "EM-Spoof", entity_type: "shared_email" },
+  { source: "C-015", target: "EM-Spoof", entity_type: "shared_email" },
+  // Inter-cluster connections
+  { source: "IP-192", target: "BTC-W1", entity_type: "shared_entity" },
+  { source: "PH-987", target: "EM-Spoof", entity_type: "shared_entity" }
 ];
 
 const MOCK_STATS: DashboardStats = {
@@ -190,7 +208,11 @@ export default function FraudNetwork() {
         setConnectionTypes(MOCK_CONNECTION_TYPES);
         setTopHubs(MOCK_TOP_HUBS);
         setSpecializationCoverage(MOCK_SPECIALIZATION_COVERAGE);
-        setGraphData({ nodes: MOCK_NODES, links: MOCK_LINKS });
+        // Deep copy to prevent d3-force from mutating the constant objects
+        setGraphData({ 
+          nodes: JSON.parse(JSON.stringify(MOCK_NODES)), 
+          links: JSON.parse(JSON.stringify(MOCK_LINKS)) 
+        });
       } else {
         setStats(statsData);
 
@@ -625,131 +647,6 @@ export default function FraudNetwork() {
               </ResponsiveContainer>
             ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">No data</div>}
           </div>
-        </div>
-
-      </div>
-
-      {/* Analytics Tier 4: Fraud Network Force Graph */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col">
-        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-md font-bold text-gray-800 flex items-center gap-2">
-            <Network size={18} className="text-gray-500"/> Entity Connection Network
-          </h3>
-          <div className="flex items-center gap-2">
-            <button onClick={handleZoomIn} className="p-1.5 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors">
-              <ZoomIn size={14} className="text-gray-600" />
-            </button>
-            <button onClick={handleZoomOut} className="p-1.5 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors">
-              <ZoomOut size={14} className="text-gray-600" />
-            </button>
-          </div>
-        </div>
-
-        {/* Legend inside graph container */}
-        <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 flex flex-wrap gap-3 text-xs">
-          {[
-            { label: "Ransomware/Hacking", color: "#b7202e" },
-            { label: "Phishing/Fraud", color: "#dc2626" },
-            { label: "UPI/OTP Scam", color: "#f59e0b" },
-            { label: "Stalking/Identity", color: "#0891b2" },
-            { label: "Bullying/Defamation", color: "#8b5cf6" },
-            { label: "Other", color: "#1e3a8a" },
-          ].map(({ label, color }) => (
-            <span key={label} className="flex items-center gap-1 text-gray-600 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full inline-block shadow-sm" style={{ backgroundColor: color }} />
-              {label}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex relative">
-          <div className="overflow-hidden flex-1 relative" style={{ height: 600 }}>
-            {loading && (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm animate-pulse bg-white z-10">
-                Loading graph data...
-              </div>
-            )}
-
-            {!loading && !error && graphData.nodes.length > 0 && (
-              <ForceGraph2D
-                ref={graphRef}
-                graphData={graphData}
-                nodeLabel={(n: any) => `${n.id} · ${n.crime_type}`}
-                nodeColor={(n: any) =>
-                  n.highlighted === false ? "#e5e7eb" : n.color
-                }
-                nodeRelSize={8}
-                linkColor={() => "#cbd5e1"}
-                linkWidth={2}
-                linkDirectionalParticles={2}
-                linkDirectionalParticleWidth={2}
-                onNodeClick={handleNodeClick}
-                backgroundColor="#ffffff"
-                cooldownTicks={120}
-                d3AlphaDecay={0.01}
-                d3VelocityDecay={0.3}
-                nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-                  const r = 8;
-                  ctx.beginPath();
-                  ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
-                  ctx.fillStyle = node.highlighted === false ? "#e5e7eb" : node.color;
-                  ctx.fill();
-                  ctx.strokeStyle = node.highlighted ? "#fff" : "rgba(255,255,255,0.5)";
-                  ctx.lineWidth = 1.5;
-                  ctx.stroke();
-                  
-                  // Only show text if zoomed in or if the node is highlighted to prevent overlapping clutter
-                  if (globalScale > 1.2 || node.highlighted) {
-                    const label = node.id ?? "";
-                    ctx.font = `bold ${12 / globalScale}px Inter, sans-serif`;
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "top";
-                    ctx.fillStyle = node.highlighted === false ? "#9ca3af" : "#1e293b";
-                    ctx.fillText(label, node.x, node.y + r + 2);
-                  }
-                }}
-                nodeCanvasObjectMode={() => "replace"}
-              />
-            )}
-          </div>
-
-          {/* Node click side panel overlay */}
-          {selected && (
-            <div className="absolute right-4 top-4 bottom-4 w-72 bg-white/95 backdrop-blur border border-gray-200 rounded-lg shadow-lg p-4 flex-shrink-0 flex flex-col z-20">
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
-                <p className="font-bold text-sm text-gray-800">Node Details</p>
-                <button onClick={clearSelection} className="hover:bg-gray-100 text-gray-500 p-1 rounded transition-colors">
-                  <X size={14} />
-                </button>
-              </div>
-              <p className="text-xs font-mono text-gov-blue mb-3 break-all bg-blue-50 p-1.5 rounded">{selected.nodeId}</p>
-              <div className="space-y-3 mb-4">
-                <div className="flex gap-2 items-center text-xs">
-                  <span className="text-gray-400 w-16 font-medium">Crime</span>
-                  <Badge label={selected.crimeType || "Unknown"} variant="default" />
-                </div>
-                <div className="flex gap-2 items-center text-xs">
-                  <span className="text-gray-400 w-16 font-medium">Severity</span>
-                  {selected.severity && <Badge label={selected.severity} variant={severityVariant(selected.severity)} />}
-                </div>
-                <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
-                  <span className="font-semibold text-gray-700">{selected.connectedIds.length}</span> connected entities found
-                </div>
-              </div>
-              {selected.connectedIds.length > 0 && (
-                <div className="flex-1 overflow-hidden flex flex-col">
-                  <p className="text-[10px] text-gray-400 uppercase font-bold mb-2 tracking-wider">Connected Cases</p>
-                  <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
-                    {selected.connectedIds.map(cid => (
-                      <div key={cid} className="text-xs font-mono text-gov-blue bg-blue-50/50 border border-blue-100/50 px-2.5 py-1.5 rounded shadow-sm truncate">
-                        {cid}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>

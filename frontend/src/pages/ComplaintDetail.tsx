@@ -135,7 +135,8 @@ export default function ComplaintDetail() {
       y += 8;
       doc.setFontSize(11);
       doc.setTextColor(60, 60, 60);
-      const summaryLines = doc.splitTextToSize(data.summary || data.complaint_text, 180);
+      const cleanSummary = (data.summary || data.complaint_text || "").replace(/\s+/g, ' ').replace(/\*\*/g, '').trim();
+      const summaryLines = doc.splitTextToSize(cleanSummary, 180);
       doc.text(summaryLines, 14, y);
       y += (summaryLines.length * 5) + 10;
       
@@ -159,8 +160,15 @@ export default function ComplaintDetail() {
       doc.setFontSize(11);
       doc.setTextColor(60, 60, 60);
       
+      let validActions: string[] = [];
       if (insightsData.insights?.suggested_actions?.length > 0) {
-        insightsData.insights.suggested_actions.forEach((action: string) => {
+        validActions = insightsData.insights.suggested_actions
+          .map((a: string) => a.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^\s*-\s*/, '').trim())
+          .filter((a: string) => a.length > 1 && a !== '-' && a !== '•');
+      }
+
+      if (validActions.length > 0) {
+        validActions.forEach((action: string) => {
           const actionLines = doc.splitTextToSize(`• ${action}`, 180);
           doc.text(actionLines, 14, y);
           y += (actionLines.length * 5) + 2;
