@@ -9,6 +9,7 @@ import Badge, { severityVariant, statusVariant } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
 import InsightsPanel from "../components/ui/InsightsPanel";
 import ReplyModal from "../components/ui/ReplyModal";
+import OsintPanel, { OsintEntity } from "../components/OsintPanel";
 import { api } from "../services/api";
 
 const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -30,6 +31,7 @@ interface ComplaintDetailData {
   reply_text: string | null;
   status: string;
   created_at: string;
+  osint_entities?: OsintEntity[];
 }
 
 function EntityRow({ label, value }: { label: string; value?: string | number | null }) {
@@ -245,6 +247,10 @@ export default function ComplaintDetail() {
               {data.complaint_text || data.raw_text || "No text provided."}
             </p>
           </Card>
+
+          {data.osint_entities && data.osint_entities.length > 0 && (
+            <OsintPanel entities={data.osint_entities} />
+          )}
 
           <Card title="Officer Reply" className="flex-grow">
             {data.reply_text ? (

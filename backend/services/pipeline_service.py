@@ -82,6 +82,16 @@ class ProcessingPipeline:
             # 3. Regex Enrichment
             entities = self.llm.validate_entities(text, ai_data.get('entities', {}))
 
+            # OSINT Enrichment (Run asyncio loop in thread)
+            from backend.services.osint_service import osint_service
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                osint_data_map = loop.run_until_complete(osint_service.enrich_entities(entities))
+            except RuntimeError:
+                # If no event loop in this thread, create one
+                osint_data_map = asyncio.run(osint_service.enrich_entities(entities))
+
             # 4. Update Complaint Table
             complaint.crime_type = ai_data.get('crime_type')
             complaint.severity = ai_data.get('severity')
@@ -108,7 +118,8 @@ class ProcessingPipeline:
                             new_entity = Entity(
                                 complaint_id=complaint.complaint_id,
                                 entity_type=e_type,
-                                entity_value=str(val)
+                                entity_value=str(val),
+                                osint_data=osint_data_map.get(str(val))
                             )
                             db.add(new_entity)
                 else:
@@ -116,7 +127,8 @@ class ProcessingPipeline:
                     new_entity = Entity(
                         complaint_id=complaint.complaint_id,
                         entity_type=e_type,
-                        entity_value=str(e_value)
+                        entity_value=str(e_value),
+                        osint_data=osint_data_map.get(str(e_value))
                     )
                     db.add(new_entity)
 

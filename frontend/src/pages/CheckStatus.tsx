@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Search, AlertCircle, Clock, CheckCircle } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import Badge, { statusVariant } from "../components/ui/Badge";
+import OsintPanel, { OsintEntity } from "../components/OsintPanel";
 
 const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
@@ -13,6 +14,7 @@ interface PublicStatusData {
   complaint_text: string;
   reply_text: string | null;
   status: string;
+  osint_entities?: OsintEntity[];
 }
 
 export default function CheckStatus() {
@@ -125,6 +127,12 @@ export default function CheckStatus() {
                 {data.complaint_text || "No text description provided."}
               </div>
             </div>
+
+            {data.osint_entities && data.osint_entities.length > 0 && (
+              <div className="mb-6">
+                <OsintPanel entities={data.osint_entities} />
+              </div>
+            )}
 
             <div className="pt-6 border-t border-gray-100">
               <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider block mb-3">Officer Response</span>

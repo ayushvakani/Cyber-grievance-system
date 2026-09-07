@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, JSON
 from backend.db.postgres import Base
 from pydantic import BaseModel
 from typing import Optional, List
@@ -11,6 +11,7 @@ class Entity(Base):
     complaint_id = Column(String, ForeignKey("complaints.complaint_id"), index=True)
     entity_type = Column(String, nullable=False)
     entity_value = Column(Text, nullable=False)
+    osint_data = Column(JSON, nullable=True)
 
 # Pydantic schemas
 class EntitySchema(BaseModel):

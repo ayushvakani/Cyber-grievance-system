@@ -18,6 +18,8 @@ pipeline = ProcessingPipeline()
 
 router = APIRouter()
 
+from backend.models.entities import Entity
+
 @router.get("/api/complaint/{complaint_id}/detail")
 def get_complaint_detail(complaint_id: str, db: Session = Depends(get_db)):
     """Day 84: Returns full complaint fields for the detail page."""
@@ -25,14 +27,15 @@ def get_complaint_detail(complaint_id: str, db: Session = Depends(get_db)):
     if not c:
         raise HTTPException(status_code=404, detail="Complaint not found")
 
-    # Parse entities JSON if stored as string
-    import json
-    entities = {}
-    if c.recommended_sections:
-        try:
-            entities = json.loads(c.recommended_sections)
-        except Exception:
-            entities = {}
+    entities = db.query(Entity).filter(Entity.complaint_id == complaint_id).all()
+    osint_entities = []
+    for e in entities:
+        if e.osint_data:
+            osint_entities.append({
+                "type": e.entity_type,
+                "value": e.entity_value,
+                "osint": e.osint_data
+            })
 
     return {
         "complaint_id": c.complaint_id,
@@ -51,6 +54,7 @@ def get_complaint_detail(complaint_id: str, db: Session = Depends(get_db)):
         "reply_text": c.reply_text,
         "status": c.status,
         "created_at": c.created_at.isoformat() if c.created_at else None,
+        "osint_entities": osint_entities,
     }
 
 @router.get("/api/complaint/{complaint_id}/public-status")
@@ -60,6 +64,16 @@ def get_complaint_public_status(complaint_id: str, db: Session = Depends(get_db)
     if not c:
         raise HTTPException(status_code=404, detail="Complaint not found")
         
+    entities = db.query(Entity).filter(Entity.complaint_id == complaint_id).all()
+    osint_entities = []
+    for e in entities:
+        if e.osint_data:
+            osint_entities.append({
+                "type": e.entity_type,
+                "value": e.entity_value,
+                "osint": e.osint_data
+            })
+
     return {
         "complaint_id": c.complaint_id,
         "citizen_name": c.citizen_name,
@@ -67,6 +81,7 @@ def get_complaint_public_status(complaint_id: str, db: Session = Depends(get_db)
         "complaint_text": c.complaint_text or c.raw_text,
         "reply_text": c.reply_text,
         "status": c.status,
+        "osint_entities": osint_entities,
     }
 
 
