@@ -145,18 +145,27 @@ Response:
             found_phones = re.findall(phone_regex, text)
             entities['phone_numbers'] = list(set(entities.get('phone_numbers', []) + found_phones))
 
-            # 2. UPI IDs (word@word format)
-            upi_regex = r"[\w.\-]+@[\w.\-]+"
+            # 2. Emails
+            email_regex = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
+            found_emails = re.findall(email_regex, text)
+            entities['emails'] = list(set(entities.get('emails', []) + found_emails))
+
+            # 3. UPI IDs (word@bank format)
+            # Ensure it doesn't have a dot after the bank name (unlike emails)
+            upi_regex = r"\b[\w.\-]+@[a-zA-Z0-9]+\b(?!\.)"
             found_upis = [u.strip(".,!?") for u in re.findall(upi_regex, text)]
+            # Exclude anything already caught as an email just in case
+            found_upis = [u for u in found_upis if not any(u in email for email in found_emails)]
             entities['upi_ids'] = list(set(entities.get('upi_ids', []) + found_upis))
 
-            # 3. IP Addresses (IPv4)
+            # 4. IP Addresses (IPv4)
             ip_regex = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
             found_ips = re.findall(ip_regex, text)
             entities['ip_addresses'] = list(set(entities.get('ip_addresses', []) + found_ips))
 
-            # 4. URLs / Domains
-            url_regex = r"https?://[^\s]+|[\w\-]+\.[a-z]{2,}(?:/[^\s]*)?"
+            # 5. URLs / Domains (make sure we don't just grab the domain from an email)
+            # We match full URLs or strict domains but try not to match standalone "yopmail.com" if it's part of an email.
+            url_regex = r"https?://[^\s]+|(?<!@)\b[\w\-]+\.[a-z]{2,}(?:/[^\s]*)?"
             found_urls = [url.strip(".,!?") for url in re.findall(url_regex, text)]
             entities['urls_domains'] = list(set(entities.get('urls_domains', []) + found_urls))
 

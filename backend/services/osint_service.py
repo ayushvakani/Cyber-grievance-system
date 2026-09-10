@@ -105,65 +105,42 @@ class OsintService:
         }
 
     async def check_email(self, email: str) -> Dict[str, Any]:
-        api_key = os.getenv("EMAILREP_API_KEY")
+        # We are using Debounce.io's free disposable email checker API which requires no key
         headers = {'User-Agent': 'CyberGrievanceApp/1.0'}
-        if api_key:
-            headers['Key'] = api_key
-
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"https://emailrep.io/{email}",
+                    f"https://disposable.debounce.io/?email={email}",
                     headers=headers,
                     timeout=5.0
                 )
                 if response.status_code == 200:
                     data = response.json()
-                    reputation = data.get("reputation", "none")
-                    suspicious = data.get("suspicious", False)
-                    details = data.get("details", {})
+                    is_disposable = data.get("disposable") == "true"
                     
-                    risk = 10
-                    flags = []
-                    status = "Safe"
-                    
-                    if reputation == "low" or suspicious:
-                        risk = 85
-                        status = "High Risk"
-                    elif reputation == "none":
-                        risk = 40
-                        status = "Unknown"
-                        
-                    if details.get("credentials_leaked"):
-                        flags.append("Credentials Leaked")
-                        risk = max(risk, 75)
-                        status = "Moderate Risk" if risk < 85 else "High Risk"
-                    if details.get("malicious_activity"):
-                        flags.append("Malicious Activity")
-                        risk = 95
-                        status = "High Risk"
-                    if details.get("blacklisted"):
-                        flags.append("Blacklisted")
-                        risk = 99
-                        status = "Critical Risk"
-                    
-                    if not flags:
-                        flags.append(f"Reputation: {reputation.capitalize()}")
-                        
-                    return {
-                        "source": "EmailRep.io",
-                        "risk_score": risk,
-                        "flags": flags,
-                        "status": status,
-                        "details": f"EmailRep.io Reputation: {reputation.capitalize()}."
-                    }
-                elif response.status_code == 429 or response.status_code == 401:
-                    logger.warning(f"EmailRep API key required or rate limited. Status: {response.status_code}")
+                    if is_disposable:
+                        return {
+                            "source": "Debounce.io",
+                            "risk_score": 90,
+                            "flags": ["Disposable/Burner Email"],
+                            "status": "High Risk",
+                            "details": "This email address belongs to a known disposable/temporary email provider often used to hide identity."
+                        }
+                    else:
+                        return {
+                            "source": "Debounce.io",
+                            "risk_score": 10,
+                            "flags": ["Valid Provider"],
+                            "status": "Safe",
+                            "details": "Email domain appears to be a legitimate provider."
+                        }
+                else:
+                    logger.warning(f"Debounce API failed with status: {response.status_code}")
         except Exception as e:
-            logger.error(f"EmailRep API error: {e}")
+            logger.error(f"Email OSINT API error: {e}")
             
-        # Fallback to Mock if API fails or requires key
-        logger.info("Using mock data for Email (API failed or key required).")
+        # Fallback to Mock if API fails
+        logger.info("Using mock data for Email (API failed).")
         await asyncio.sleep(0.01)
         email_lower = email.lower()
         if "support" in email_lower or "admin" in email_lower or "service" in email_lower:

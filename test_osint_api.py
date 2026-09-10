@@ -2,11 +2,11 @@ import asyncio
 from backend.services.osint_service import osint_service
 
 async def main():
-    print("Testing EmailRep.io (safe email)...")
+    print("Testing Debounce.io (safe email)...")
     res1 = await osint_service.check_email("bill@microsoft.com")
     print(res1)
     
-    print("\nTesting EmailRep.io (burner/risky email)...")
+    print("\nTesting Debounce.io (burner/disposable email)...")
     res2 = await osint_service.check_email("test@yopmail.com")
     print(res2)
     

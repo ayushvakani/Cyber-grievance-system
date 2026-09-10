@@ -160,18 +160,9 @@ class ProcessingPipeline:
                 self.emb_service.store_in_chromadb(complaint.complaint_id, text, emb, metadata)
 
             try:
-                # Pre-generate and cache the insights so they are instantly available when the officer clicks
-                logger.info(f"[Pipeline] Pre-generating CRAG insights for {complaint.complaint_id}...")
-                from backend.services.crag_service import CorrectiveRAGService
-                from backend.services.rag_service import GraphRAGService
-                
-                rag = GraphRAGService()
-                crag = CorrectiveRAGService()
-                docs = rag.retrieve(complaint.complaint_id, text, entities=[])
-                # Consume the generator to force the LLM to run and save to cache
-                for _ in crag.process_stream(complaint.complaint_id, text, docs):
-                    pass
-                logger.info(f"[Pipeline] Successfully pre-generated CRAG insights for {complaint.complaint_id}")
+                # [Optimization] We disabled pre-generating CRAG insights here to speed up pipeline time!
+                # Insights will now be generated lazily/on-demand when the officer clicks the button in the UI.
+                pass
             except Exception as e:
                 logger.error(f"[Pipeline] Failed to pre-generate CRAG insights: {e}")
 
